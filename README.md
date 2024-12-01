@@ -1,29 +1,10 @@
-# README #
+**Group 08**
 
-This README would normally document whatever steps are necessary to get your application up and running.
 
-### What is this repository for? ###
+Martina Boscolo Bacheto, martina.boscolobacheto@studenti.unipd.it 
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
 
-### How do I get set up? ###
+Tommaso Milanello, tommaso.milanello@studenti.unipd.it 
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
 
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+Matteo Ruta, matteo.ruta@studenti.unipd.it 
