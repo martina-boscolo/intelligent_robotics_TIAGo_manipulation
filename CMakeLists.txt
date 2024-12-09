@@ -13,6 +13,10 @@ find_package(catkin REQUIRED
   message_generation
   actionlib
   tiago_iaslab_simulation
+  tf
+  sensor_msgs
+  move_base_msgs
+  geometry_msgs
   )
 
 ## System dependencies are found with CMake's conventions
@@ -49,26 +53,29 @@ find_package(catkin REQUIRED
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-)
+#add_message_files(
+#  FILES
+#)
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-)
+#add_service_files(
+#  FILES
+#)
 
 ## Generate actions in the 'action' folder
-add_action_files(
-  FILES
-)
+#add_action_files(
+#  FILES
+#)
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs 
-  actionlib_msgs
-)
+#generate_messages(
+#  DEPENDENCIES
+#  std_msgs 
+#  actionlib_msgs
+#  geometry_msgs
+#  sensor_msgs
+#  move_base_msgs
+#)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -113,7 +120,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -131,6 +138,8 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/ir2425_group_08_node.cpp)
+add_executable(node_a src/node_a.cpp)
+add_executable(explore src/explore_horizon.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -141,11 +150,15 @@ include_directories(
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(node_a ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(explore ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+target_link_libraries(node_a ${catkin_LIBRARIES})
+target_link_libraries(explore ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -201,11 +214,3 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-include_directories(
-include
-${catkin_INCLUDE_DIRS}
-)
-
-add_executable(node_a src/node_a.cpp)
-target_link_libraries(node_a ${catkin_LIBRARIES})
-add_dependencies(node_a ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
