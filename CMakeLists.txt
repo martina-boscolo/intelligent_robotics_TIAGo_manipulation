@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-<<<<<<< HEAD
-project(tiago_apriltag_detection)
-=======
 project(ir2425_group_08)
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -11,7 +7,6 @@ project(ir2425_group_08)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-<<<<<<< HEAD
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
@@ -21,16 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   tf2_ros
   message_generation
-)
-=======
-find_package(catkin REQUIRED
-  roscpp
-  std_msgs
-  message_generation
-  actionlib
   tiago_iaslab_simulation
-  )
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -66,7 +53,6 @@ find_package(catkin REQUIRED
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-<<<<<<< HEAD
 # add_message_files(
 #   FILES
 #   Message1.msg
@@ -86,32 +72,12 @@ find_package(catkin REQUIRED
 #   Action1.action
 #   Action2.action
 # )
-=======
-add_message_files(
-  FILES
-)
-
-## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-)
-
-## Generate actions in the 'action' folder
-add_action_files(
-  FILES
-)
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
-<<<<<<< HEAD
   #geometry_msgs#   sensor_msgs
   std_msgs
-=======
-  std_msgs 
-  actionlib_msgs
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
 )
 
 ################################################
@@ -145,13 +111,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-<<<<<<< HEAD
 #  LIBRARIES tiago_apriltag_detection
 CATKIN_DEPENDS message_runtime geometry_msgs roscpp rospy sensor_msgs std_msgs tf tf2_ros
-=======
-#  LIBRARIES ir2425_group_08
-   CATKIN_DEPENDS roscpp std_msgs message_runtime actionlib
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
 #  DEPENDS system_lib
 )
 
@@ -168,7 +129,6 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-<<<<<<< HEAD
 #   src/${PROJECT_NAME}/tiago_apriltag_detection.cpp
 # )
 
@@ -178,16 +138,15 @@ target_link_libraries(nodeA ${catkin_LIBRARIES})
 add_dependencies(nodeA ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 # Node B
-add_executable(nodeB src/nodeB.cpp)
-target_link_libraries(nodeB ${catkin_LIBRARIES})
-add_dependencies(nodeB ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(node_b src/node_b.cpp)
+target_link_libraries(node_b ${catkin_LIBRARIES})
+add_dependencies(node_b ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(node_a src/node_a.cpp)
+target_link_libraries(node_a ${catkin_LIBRARIES})
+add_dependencies(node_a ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
-=======
-#   src/${PROJECT_NAME}/ir2425_group_08.cpp
-# )
-
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
@@ -196,11 +155,7 @@ add_dependencies(nodeB ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TAR
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-<<<<<<< HEAD
 # add_executable(${PROJECT_NAME}_node src/tiago_apriltag_detection_node.cpp)
-=======
-# add_executable(${PROJECT_NAME}_node src/ir2425_group_08_node.cpp)
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -264,25 +219,10 @@ add_dependencies(nodeB ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TAR
 #############
 
 ## Add gtest based cpp test target and link libraries
-<<<<<<< HEAD
 # catkin_add_gtest(${PROJECT_NAME}-test test/test_tiago_apriltag_detection.cpp)
-=======
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_ir2425_group_08.cpp)
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-<<<<<<< HEAD
-=======
-include_directories(
-include
-${catkin_INCLUDE_DIRS}
-)
-
-add_executable(node_a src/node_a.cpp)
-target_link_libraries(node_a ${catkin_LIBRARIES})
-add_dependencies(node_a ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
->>>>>>> 3b9ccce8a63c651ea9a1491cc0dfa7fb5653ea7b
