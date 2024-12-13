@@ -1,4 +1,4 @@
 <launch>
-    <node name="nodeA" pkg="tiago_apriltag_detection" type="nodeA" output="screen" />
-    <node name="nodeB" pkg="tiago_apriltag_detection" type="nodeB" output="screen" />
+    <node name="node_a" pkg="ir2425_group_08" type="node_a" output="screen" />
+    <node name="node_b" pkg="ir2425_group_08" type="node_b" output="screen" />
 </launch>
