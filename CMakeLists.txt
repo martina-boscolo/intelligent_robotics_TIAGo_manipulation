@@ -133,18 +133,15 @@ include_directories(
 # )
 
 # Node A
-add_executable(nodeA src/nodeA.cpp)
-target_link_libraries(nodeA ${catkin_LIBRARIES})
-add_dependencies(nodeA ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(node_a src/node_a.cpp)
+target_link_libraries(node_a ${catkin_LIBRARIES})
+add_dependencies(node_a ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 # Node B
 add_executable(node_b src/node_b.cpp)
 target_link_libraries(node_b ${catkin_LIBRARIES})
 add_dependencies(node_b ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(node_a src/node_a.cpp)
-target_link_libraries(node_a ${catkin_LIBRARIES})
-add_dependencies(node_a ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
 ## Add cmake target dependencies of the library
