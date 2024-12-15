@@ -7,17 +7,14 @@ project(ir2425_group_08)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED
+find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   message_generation
   actionlib
+  apriltag_ros
   tiago_iaslab_simulation
-  tf
-  sensor_msgs
-  move_base_msgs
-  geometry_msgs
-  )
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -63,19 +60,18 @@ find_package(catkin REQUIRED
 #)
 
 ## Generate actions in the 'action' folder
-#add_action_files(
-#  FILES
-#)
+add_action_files(
+  DIRECTORY action
+  FILES FindTags.action
+)
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES
-#  std_msgs 
-#  actionlib_msgs
-#  geometry_msgs
-#  sensor_msgs
-#  move_base_msgs
-#)
+generate_messages(
+  DEPENDENCIES
+  actionlib_msgs
+  std_msgs
+  apriltag_ros
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -109,7 +105,7 @@ find_package(catkin REQUIRED
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES ir2425_group_08
-   CATKIN_DEPENDS roscpp std_msgs message_runtime actionlib
+   CATKIN_DEPENDS std_msgs message_runtime actionlib
 #  DEPENDS system_lib
 )
 
@@ -139,6 +135,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/ir2425_group_08_node.cpp)
 add_executable(node_a src/node_a.cpp)
+add_executable(node_b src/node_b.cpp)
 add_executable(explore src/explore_horizon.cpp)
 
 ## Rename C++ executable without prefix
@@ -150,14 +147,16 @@ add_executable(explore src/explore_horizon.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(node_a ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(explore ${ir2425_group_08_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(node_a ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(node_b ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(explore ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(node_a ${catkin_LIBRARIES})
+target_link_libraries(node_b ${catkin_LIBRARIES})
 target_link_libraries(explore ${catkin_LIBRARIES})
 
 #############

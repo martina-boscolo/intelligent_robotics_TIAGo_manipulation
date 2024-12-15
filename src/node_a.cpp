@@ -1,5 +1,18 @@
 #include "ros/ros.h"
+#include <actionlib/client/simple_action_client.h>
+
 #include <tiago_iaslab_simulation/Objs.h>
+#include <ir2425_group_08/FindTagsAction.h>
+#include <apriltag_ros/AprilTagDetection.h>
+
+void feedbackCallback(const ir2425_group_08::FindTagsFeedbackConstPtr& msg)
+{
+    for (apriltag_ros::AprilTagDetection tag : msg->alreadyFoundTags)
+    {
+        //TODO better display
+        ROS_INFO("Found tag n %d", tag.id[0]);
+    }
+}
 
 int main(int argc, char **argv)
 {
@@ -28,11 +41,29 @@ int main(int argc, char **argv)
         {
             ROS_INFO(" - ID: %d", id);
         }
+
+        actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction> ac("find_tags", true);
+        
+        ROS_INFO("Waiting for find_tags server (launch node B...)");
+        ac.waitForServer();
+
+        ir2425_group_08::FindTagsGoal goal;
+        goal.ids = srv.response.ids;
+
+        ROS_INFO("Sending goal to node B via find_tags...");
+        ac.sendGoal(goal, actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction>::SimpleDoneCallback(),
+                actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction>::SimpleActiveCallback(),
+                &feedbackCallback);
+
+        ac.waitForResult();
+
+        ROS_INFO("It's Over!");
     }
     else
     {
         ROS_ERROR("Failed to call service /apriltag_ids_srv");
     }
 
+    ros::spin();
     return 0;
 }

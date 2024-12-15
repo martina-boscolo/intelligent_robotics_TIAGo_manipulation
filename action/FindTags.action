@@ -1,0 +1,10 @@
+# goal
+int32[] ids
+
+---
+# result
+bool finished
+
+---
+# feedback
+apriltag_ros/AprilTagDetection[] alreadyFoundTags
