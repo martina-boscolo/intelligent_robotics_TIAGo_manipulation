@@ -10,6 +10,7 @@
 #include <move_base_msgs/MoveBaseGoal.h>
 #include <control_msgs/PointHeadAction.h>
 #include <control_msgs/PointHeadGoal.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
@@ -18,12 +19,12 @@
 #include <string>
 #include <math.h>
 
-// just for camera debug
 #include <opencv2/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 
 #include <thread>  // For managing parallel execution
+#include <atomic>  // For thread-safe flag
 
 geometry_msgs::Point createPoint(double x, double y, double z)
 {
@@ -36,13 +37,13 @@ geometry_msgs::Point createPoint(double x, double y, double z)
 
 std::vector<geometry_msgs::Point> WAYPOINT_LIST = 
 {
-    //createPoint(8.312910079956055, 0.2933077812194824, 0.0),
-    //createPoint(10.939831733703613, 0.7441291809082031, 0.0),
     createPoint(0.0, 0.0, 0.0),
     createPoint(9.5, 0.0, 0.0),
     createPoint(12.0, -1.0, 0.0),
     createPoint(9.5, -4.0, 0.0),
+    createPoint(8.5, -1.5, 0.0),
     createPoint(12.5, -3.0, 0.0),
+    createPoint(13.5, -1.5, 0.0),
     createPoint(0.0, 0.0, 0.0),
 };
 
@@ -56,7 +57,9 @@ protected:
 
     std::vector<int> Ids;
     std::set<int> AlreadyFoundIds;
-    //std::vector<int> AlreadyFoundIds;
+
+    std::atomic<bool> keepHeadMoving;
+    std::thread headMovementThread;
 
     bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag)
     {
@@ -70,6 +73,7 @@ protected:
         return isValid && isNew;
     }
 
+
 public:
     FindTags(ros::NodeHandle& nh, std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
     {
@@ -77,109 +81,102 @@ public:
 
         this->sub_ = nh.subscribe("tag_detections", 1, &FindTags::tagsCallback, this);
         ROS_INFO("Server and tag_detections subscriber started");
+
+      
     }
 
-void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr& msg)
-{
-    for (const auto& tag : msg->detections)
+   
+
+    void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr& msg)
     {
-        if (tag.id.empty()) continue;
-
-        int tagId = tag.id[0];
-        if (this->isNewAndValidTag(tag))
+        for (const auto& tag : msg->detections)
         {
-            this->feedback_.alreadyFoundTags.push_back(tag);
-            this->AlreadyFoundIds.insert(tag.id[0]);  // Use insert instead of push_back
+            if (tag.id.empty()) continue;
 
-            this->as_.publishFeedback(this->feedback_);
-            ROS_INFO("New valid tag detected: %d", tagId);
-        }
-        else
-        {
-            ROS_INFO("Invalid or already detected tag: %d", tagId);
+            int tagId = tag.id[0];
+            if (this->isNewAndValidTag(tag))
+            {
+                this->feedback_.alreadyFoundTags.push_back(tag);
+                this->AlreadyFoundIds.insert(tag.id[0]);
+                this->as_.publishFeedback(this->feedback_);
+                ROS_INFO("New valid tag detected: %d", tagId);
+            }
+            else
+            {
+                ROS_INFO("Invalid or already detected tag: %d", tagId);
+            }
         }
     }
-}
 
-
-void moveHead( double angle, bool toLeft)
-{
-    actionlib::SimpleActionClient<control_msgs::PointHeadAction> ac("head_controller/point_head_action", true);
-
-    ROS_INFO("Waiting for head_controller...");
-    ac.waitForServer();
-
-    control_msgs::PointHeadGoal goal;
-    goal.target.header.stamp = ros::Time::now();
-    goal.target.header.frame_id = "base_link";  // Adjust to your frame
-    goal.target.point.x = 1.0;                 // Focus 1 meter in front
-    goal.target.point.y = toLeft ? tan(angle) : -tan(angle);  // Swaying left and right
-    goal.target.point.z = 0.0;                 // Keep level
-    goal.pointing_axis.z = 1.0;                // Point in Z direction
-    goal.pointing_frame = "head_frame";        // Adjust to your robot's head frame
-    goal.min_duration = ros::Duration(0.5);    // Minimal duration for head movement
-    goal.max_velocity = 1.0;                  // Head movement speed
-
-    ROS_INFO("Sending head movement goal...");
-    ac.sendGoal(goal);
-    ac.waitForResult();  // Wait for the head to finish moving
-}
-
-
-
-
-void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr& goal)
-{
-    this->Ids = goal->ids;
-    int waypointIndex = 0;
-
-    actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
-
-    ROS_INFO("Waiting for move_base...");
-    moveClient.waitForServer();
-
-    // Move to each waypoint
-    while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
+    void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr& goal)
     {
-        move_base_msgs::MoveBaseGoal waypointGoal;
-        waypointGoal.target_pose.header.stamp = ros::Time::now();
-        waypointGoal.target_pose.header.frame_id = "map";
-        waypointGoal.target_pose.pose.position = WAYPOINT_LIST[waypointIndex];
-        waypointGoal.target_pose.pose.orientation.w = 1.0;
+        this->Ids = goal->ids;
+        int waypointIndex = 0;
 
-        ROS_INFO("Moving to waypoint %d: x=%.2f, y=%.2f",
-                 waypointIndex,
-                 waypointGoal.target_pose.pose.position.x,
-                 waypointGoal.target_pose.pose.position.y);
+        actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
 
-        moveClient.sendGoal(waypointGoal);
+        ROS_INFO("Waiting for move_base...");
+        moveClient.waitForServer();
 
-        // Alternate head movement: left or right, every time a new waypoint is reached
-        moveHead(M_PI / 6, waypointIndex % 2 == 0);  // Alternate between left and right
-
-        if (moveClient.waitForResult(ros::Duration(10.0)))
+        while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
         {
-            ROS_INFO("Goal reached");
-            waypointIndex++;
+            move_base_msgs::MoveBaseGoal waypointGoal;
+            waypointGoal.target_pose.header.stamp = ros::Time::now();
+            waypointGoal.target_pose.header.frame_id = "map";
+            waypointGoal.target_pose.pose.position = WAYPOINT_LIST[waypointIndex];
+            waypointGoal.target_pose.pose.orientation.w = 1.0;
+
+            ROS_INFO("Moving to waypoint %d: x=%.2f, y=%.2f",
+                     waypointIndex,
+                     waypointGoal.target_pose.pose.position.x,
+                     waypointGoal.target_pose.pose.position.y);
+
+            moveClient.sendGoal(waypointGoal);
+
+            if (moveClient.waitForResult(ros::Duration(10.0)))
+            {
+                ROS_INFO("Waypoint %d reached", waypointIndex);
+                waypointIndex++;
+            }
+            else
+            {
+                ROS_WARN("Timeout reached for waypoint %d", waypointIndex);
+            }
         }
-        else
+
+        if (waypointIndex >= WAYPOINT_LIST.size())
         {
-            ROS_WARN("Timeout reached for waypoint %d", waypointIndex);
+            ROS_INFO("All waypoints visited");
         }
+
+        ROS_INFO("Publishing result...");
+        this->result_.finished = (this->AlreadyFoundIds.size() == this->Ids.size());
+        this->as_.setSucceeded(this->result_);
     }
-
-    if (waypointIndex >= WAYPOINT_LIST.size())
-    {
-        ROS_INFO("All waypoints visited...");
-    }
-
-    ROS_INFO("Publishing result...");
-    this->result_.finished = (this->AlreadyFoundIds.size() == this->Ids.size());
-    this->as_.setSucceeded(this->result_);
-}
-
 };
 
+void extendTorso()
+{
+    actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> ac("torso_controller/follow_joint_trajectory", true);
+
+    ROS_INFO("Waiting for torso_controller...");
+    ac.waitForServer();
+
+    control_msgs::FollowJointTrajectoryGoal goal;
+    trajectory_msgs::JointTrajectoryPoint point;
+
+    goal.trajectory.joint_names.push_back("torso_lift_joint");
+    point.positions.push_back(0.35); // Maximum height (adjust based on Tiago specs)
+    point.time_from_start = ros::Duration(2.0); // Time to reach the position
+
+    goal.trajectory.points.push_back(point);
+    goal.trajectory.header.stamp = ros::Time::now();
+
+    ROS_INFO("Sending torso extension goal...");
+    ac.sendGoal(goal);
+    ac.waitForResult();
+    ROS_INFO("Torso fully extended");
+}
 
 void lookDown(ros::NodeHandle& nh)
 {
@@ -188,12 +185,11 @@ void lookDown(ros::NodeHandle& nh)
     ROS_INFO("Waiting for head_controller...");
     ac.waitForServer();
 
-    // move down head by 30 degrees
     control_msgs::PointHeadGoal goal;
     goal.target.header.stamp = ros::Time(0);
     goal.target.header.frame_id = "xtion_rgb_optical_frame";
     goal.target.point.x = 0.0;
-    goal.target.point.y = tan(M_PI / 4); // inclination of 45 degree;
+    goal.target.point.y = tan(M_PI / 4); // inclination of 45 degrees
     goal.target.point.z = 1.0;
     goal.pointing_axis.z = 1.0;
     goal.pointing_frame = "xtion_rgb_optical_frame";
@@ -206,7 +202,6 @@ void lookDown(ros::NodeHandle& nh)
     ac.waitForResult();
     ROS_INFO("Robot is looking down");
 }
-
 void cameraCallback(const sensor_msgs::ImageConstPtr& msg)
 {
     cv::imshow("camera", cv_bridge::toCvCopy(msg, msg->encoding)->image);
@@ -218,11 +213,12 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "node_b");
     ros::NodeHandle nh;
 
-    // debug section for camera
+    // Debug section for camera
     cv::namedWindow("camera");
     ros::Subscriber sub = nh.subscribe("xtion/rgb/image_raw", 1, cameraCallback);
 
     lookDown(nh);
+    extendTorso();
 
     FindTags findTags(nh, "find_tags");
 
