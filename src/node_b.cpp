@@ -23,8 +23,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 
-#include <thread>  // For managing parallel execution
-#include <atomic>  // For thread-safe flag
+#include <thread> // For managing parallel execution
+#include <atomic> // For thread-safe flag
 
 geometry_msgs::Point createPoint(double x, double y, double z)
 {
@@ -35,16 +35,16 @@ geometry_msgs::Point createPoint(double x, double y, double z)
     return p;
 }
 
-std::vector<geometry_msgs::Point> WAYPOINT_LIST = 
-{
-    createPoint(0.0, 0.0, 0.0),
-    createPoint(9.5, 0.0, 0.0),
-    createPoint(12.0, -1.0, 0.0),
-    createPoint(9.5, -4.0, 0.0),
-    createPoint(8.5, -1.5, 0.0),
-    createPoint(12.5, -3.0, 0.0),
-    createPoint(13.5, -1.5, 0.0),
-    createPoint(0.0, 0.0, 0.0),
+std::vector<geometry_msgs::Point> WAYPOINT_LIST =
+    {
+        createPoint(0.0, 0.0, 0.0),
+        createPoint(9.5, 0.0, 0.0),
+        createPoint(12.0, -1.0, 0.0),
+        createPoint(9.5, -4.0, 0.0),
+        createPoint(8.5, -1.5, 0.0),
+        createPoint(12.5, -3.0, 0.0),
+        createPoint(13.5, -1.5, 0.0),
+        createPoint(0.0, 0.0, 0.0),
 };
 
 class FindTags
@@ -56,11 +56,10 @@ protected:
     ros::Subscriber sub_;
 
     std::vector<int> Ids;
-    std::set<int> AlreadyFoundIds;
+    std::vector<int> AlreadyFoundIds;
 
     std::atomic<bool> keepHeadMoving;
     std::thread headMovementThread;
-
     bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag)
     {
         if (tag.id.empty())
@@ -68,49 +67,74 @@ protected:
 
         int tagId = tag.id[0];
         bool isValid = std::find(this->Ids.begin(), this->Ids.end(), tagId) != this->Ids.end();
-        bool isNew = this->AlreadyFoundIds.find(tagId) == this->AlreadyFoundIds.end();
+        bool isNew = std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end();
 
         return isValid && isNew;
     }
 
-
 public:
-    FindTags(ros::NodeHandle& nh, std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
+    FindTags(ros::NodeHandle &nh, std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
     {
         this->as_.start();
 
         this->sub_ = nh.subscribe("tag_detections", 1, &FindTags::tagsCallback, this);
         ROS_INFO("Server and tag_detections subscriber started");
-
-      
     }
 
-   
-
-    void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr& msg)
+    void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
     {
-        for (const auto& tag : msg->detections)
+        for (const auto &tag : msg->detections)
         {
-            if (tag.id.empty()) continue;
+            if (tag.id.empty())
+                continue;
 
             int tagId = tag.id[0];
             if (this->isNewAndValidTag(tag))
             {
-                this->feedback_.alreadyFoundTags.push_back(tag);
-                this->AlreadyFoundIds.insert(tag.id[0]);
-                this->as_.publishFeedback(this->feedback_);
-                ROS_INFO("New valid tag detected: %d", tagId);
+                // Add the tag ID to AlreadyFoundIds only if not already present
+                if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
+                {
+                    this->AlreadyFoundIds.push_back(tagId);
+                }
+
+                // Check if this tag already exists in feedback_.alreadyFoundTags
+                bool alreadyExists = std::any_of(
+                    this->feedback_.alreadyFoundTags.begin(),
+                    this->feedback_.alreadyFoundTags.end(),
+                    [&](const apriltag_ros::AprilTagDetection &existingTag)
+                    {
+                        return existingTag.id[0] == tagId;
+                    });
+
+                if (!alreadyExists)
+                {
+                    this->feedback_.alreadyFoundTags.push_back(tag);
+                    this->as_.publishFeedback(this->feedback_);
+                    ROS_INFO("New valid tag detected: %d", tagId);
+                    ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
+                                                                         << ", y: " << tag.pose.pose.pose.position.y
+                                                                         << ", z: " << tag.pose.pose.pose.position.z);
+                }
             }
-            else
-            {
-                ROS_INFO("Invalid or already detected tag: %d", tagId);
-            }
+            // else
+            // {
+            //     ROS_INFO("Invalid or already detected tag: %d", tagId);
+            // }
         }
     }
 
-    void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr& goal)
+    void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr &goal)
     {
-        this->Ids = goal->ids;
+        // Deduplicate the IDs in the goal
+        this->Ids.clear();
+        for (int id : goal->ids)
+        {
+            if (std::find(this->Ids.begin(), this->Ids.end(), id) == this->Ids.end())
+            {
+                this->Ids.push_back(id);
+            }
+        }
+
         int waypointIndex = 0;
 
         actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
@@ -166,7 +190,7 @@ void extendTorso()
     trajectory_msgs::JointTrajectoryPoint point;
 
     goal.trajectory.joint_names.push_back("torso_lift_joint");
-    point.positions.push_back(0.35); // Maximum height (adjust based on Tiago specs)
+    point.positions.push_back(0.35);            // Maximum height (adjust based on Tiago specs)
     point.time_from_start = ros::Duration(2.0); // Time to reach the position
 
     goal.trajectory.points.push_back(point);
@@ -178,7 +202,7 @@ void extendTorso()
     ROS_INFO("Torso fully extended");
 }
 
-void lookDown(ros::NodeHandle& nh)
+void lookDown(ros::NodeHandle &nh)
 {
     actionlib::SimpleActionClient<control_msgs::PointHeadAction> ac("head_controller/point_head_action", true);
 
@@ -202,13 +226,13 @@ void lookDown(ros::NodeHandle& nh)
     ac.waitForResult();
     ROS_INFO("Robot is looking down");
 }
-void cameraCallback(const sensor_msgs::ImageConstPtr& msg)
+void cameraCallback(const sensor_msgs::ImageConstPtr &msg)
 {
     cv::imshow("camera", cv_bridge::toCvCopy(msg, msg->encoding)->image);
     cv::waitKey(1);
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     ros::init(argc, argv, "node_b");
     ros::NodeHandle nh;
