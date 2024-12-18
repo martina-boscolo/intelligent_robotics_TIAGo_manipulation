@@ -16,6 +16,8 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
 
+#include <tf/transform_listener.h>
+
 #include <string>
 #include <math.h>
 
@@ -55,6 +57,7 @@ protected:
     ir2425_group_08::FindTagsFeedback feedback_;
     ir2425_group_08::FindTagsResult result_;
     ros::Subscriber sub_;
+    tf::TransformListener* tf_listener_;
 
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
@@ -74,7 +77,7 @@ protected:
     }
 
 public:
-    FindTags(ros::NodeHandle &nh, std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
+    FindTags(ros::NodeHandle &nh, tf::TransformListener &tf_listener, std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false), tf_listener_(&tf_listener)
     {
         this->as_.start();
 
@@ -121,17 +124,32 @@ public:
                     this->feedback_.alreadyFoundTags.push_back(tag);
                     this->as_.publishFeedback(this->feedback_);
                     ROS_INFO("New valid tag detected: %d", tagId);
-                    ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
-                                                                         << ", y: " << tag.pose.pose.pose.position.y
-                                                                         << ", z: " << tag.pose.pose.pose.position.z);
+                    geometry_msgs::PoseStamped tagPose, mapPose;
+                    try
+                    {
+                        tagPose.header = tag.pose.header;  // Copy header (frame_id and timestamp)
+                        tagPose.pose = tag.pose.pose.pose; // Extract pose
+
+                        // Wait for the transform and apply it
+                        tf_listener_->waitForTransform("map", tagPose.header.frame_id, ros::Time(0), ros::Duration(1.0));
+                        tf_listener_->transformPose("map", tagPose, mapPose);
+
+                        // Print the transformed position
+                        ROS_INFO_STREAM("Position (wrt map) - x: " << mapPose.pose.position.x 
+                                                                << ", y: " << mapPose.pose.position.y
+                                                                << ", z: " << mapPose.pose.position.z);
+                    }
+                    catch (tf::TransformException &ex)
+                    {
+                        ROS_INFO("COULDN'T TRANSFORM TO MAP FRAME!!")
+                        ROS_ERROR("Transform error: %s", ex.what());
+                        throw;
+                    }
                 }
             }
-            // else
-            // {
-            //     ROS_INFO("Invalid or already detected tag: %d", tagId);
-            // }
         }
     }
+
 
     void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr &goal)
     {
@@ -246,7 +264,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "node_b");
     ros::NodeHandle nh;
-
+    tf::TransformListener tf_listener; 
     // Debug section for camera
     cv::namedWindow("camera");
     ros::Subscriber sub = nh.subscribe("xtion/rgb/image_raw", 1, cameraCallback);
@@ -254,7 +272,7 @@ int main(int argc, char **argv)
     lookDown(nh);
     extendTorso();
 
-    FindTags findTags(nh, "find_tags");
+    FindTags findTags(nh, tf_listener, "find_tags");
 
     ros::spin();
     return 0;
