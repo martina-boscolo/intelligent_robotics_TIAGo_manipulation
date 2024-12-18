@@ -39,6 +39,7 @@ std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
         createPoint(0.0, 0.0, 0.0),
         createPoint(9.5, 0.0, 0.0),
+        createPoint(12, 1.0, 0.0),
         createPoint(12.0, -1.0, 0.0),
         createPoint(9.5, -4.0, 0.0),
         createPoint(8.5, -1.5, 0.0),
@@ -91,22 +92,31 @@ public:
             int tagId = tag.id[0];
             if (this->isNewAndValidTag(tag))
             {
+                bool isPresent = false;
                 // Add the tag ID to AlreadyFoundIds only if not already present
-                if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
-                {
-                    this->AlreadyFoundIds.push_back(tagId);
+                for (int i =0; i< this->AlreadyFoundIds.size(); i++){
+                    if (AlreadyFoundIds[i]== tagId)
+                      isPresent = true;
+                      break;
                 }
+                if(!isPresent)
+                    this->AlreadyFoundIds.push_back(tagId);
+
+                // if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
+                // {
+                //     this->AlreadyFoundIds.push_back(tagId);
+                // }
 
                 // Check if this tag already exists in feedback_.alreadyFoundTags
-                bool alreadyExists = std::any_of(
-                    this->feedback_.alreadyFoundTags.begin(),
-                    this->feedback_.alreadyFoundTags.end(),
-                    [&](const apriltag_ros::AprilTagDetection &existingTag)
-                    {
-                        return existingTag.id[0] == tagId;
-                    });
+                // bool alreadyExists = std::any_of(
+                //     this->feedback_.alreadyFoundTags.begin(),
+                //     this->feedback_.alreadyFoundTags.end(),
+                //     [&](const apriltag_ros::AprilTagDetection &existingTag)
+                //     {
+                //         return existingTag.id[0] == tagId;
+                //     });
 
-                if (!alreadyExists)
+                if (!isPresent)
                 {
                     this->feedback_.alreadyFoundTags.push_back(tag);
                     this->as_.publishFeedback(this->feedback_);
@@ -213,7 +223,7 @@ void lookDown(ros::NodeHandle &nh)
     goal.target.header.stamp = ros::Time(0);
     goal.target.header.frame_id = "xtion_rgb_optical_frame";
     goal.target.point.x = 0.0;
-    goal.target.point.y = tan(M_PI / 4); // inclination of 45 degrees
+    goal.target.point.y = tan(M_PI / 6); // inclination of 30 degrees
     goal.target.point.z = 1.0;
     goal.pointing_axis.z = 1.0;
     goal.pointing_frame = "xtion_rgb_optical_frame";
