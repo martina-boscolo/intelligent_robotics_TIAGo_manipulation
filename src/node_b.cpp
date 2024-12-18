@@ -15,6 +15,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
+#include <tf/transform_listener.h>
 
 #include <string>
 #include <math.h>
@@ -55,6 +56,7 @@ protected:
     ir2425_group_08::FindTagsFeedback feedback_;
     ir2425_group_08::FindTagsResult result_;
     ros::Subscriber sub_;
+    tf::TransformListener tf_listener_;
 
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
@@ -74,7 +76,7 @@ protected:
     }
 
 public:
-    FindTags(ros::NodeHandle &nh, std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
+    FindTags(ros::NodeHandle &nh,  std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
     {
         this->as_.start();
 
@@ -116,14 +118,55 @@ public:
                 //         return existingTag.id[0] == tagId;
                 //     });
 
+                //LE STAMPE DEVONO ESSERE SISTEMATE
                 if (!isPresent)
                 {
-                    this->feedback_.current_detection = tag;
-                    this->as_.publishFeedback(this->feedback_);
+                    
                     ROS_INFO("New valid tag detected: %d", tagId);
                     ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
                                                                          << ", y: " << tag.pose.pose.pose.position.y
                                                                          << ", z: " << tag.pose.pose.pose.position.z);
+
+                    // Transform the pose from camera frame to map frame
+                    geometry_msgs::PoseStamped pose_in_camera_frame;
+                    geometry_msgs::PoseStamped pose_in_map_frame;
+
+                    pose_in_camera_frame.header = tag.pose.header;  // Copy the frame_id and timestamp
+                    pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
+
+                    try
+                    {
+                        // Use the TF listener to transform the pose
+                        tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
+                                                      pose_in_camera_frame.header.stamp, ros::Duration(1.0));
+                        tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
+
+                        // Print the transformed pose 
+                        ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
+                                                   << pose_in_map_frame.pose.position.x
+                                                   << ", y: " << pose_in_map_frame.pose.position.y
+                                                   << ", z: " << pose_in_map_frame.pose.position.z);
+
+                        apriltag_ros::AprilTagDetection newTag;
+
+                        // Assign the transformed pose properly
+                        newTag.pose.pose.pose = pose_in_map_frame.pose; // Copy both position and orientation
+
+                        // Set the header correctly (frame ID and timestamp)
+                        newTag.pose.header.frame_id = "map"; // Target frame
+                        newTag.pose.header.stamp = pose_in_map_frame.header.stamp;
+                        // Copy the tag ID
+                        newTag.id = tag.id;
+
+
+                        // Publish the feedback
+                        this->feedback_.current_detection = newTag;
+                        this->as_.publishFeedback(this->feedback_);
+                    }
+                    catch (tf::TransformException &ex)
+                    {
+                        ROS_WARN("Failed to transform pose: %s", ex.what());
+                    }
                 }
             }
             // else
@@ -246,6 +289,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "node_b");
     ros::NodeHandle nh;
+    tf::TransformListener tf_listener;
 
     // Debug section for camera
     cv::namedWindow("camera");
@@ -254,8 +298,9 @@ int main(int argc, char **argv)
     lookDown(nh);
     extendTorso();
 
+
     FindTags findTags(nh, "find_tags");
 
-    ros::spin();
+    ros::spin(); //is this really needed? 
     return 0;
 }

@@ -32,7 +32,6 @@ int main(int argc, char **argv)
 
     // Wait for the service to become available
     ROS_INFO("Waiting for /apriltags_ids_srv service...");
-    //client.waitForExistence();
     ros::service::waitForService("/apriltag_ids_srv");
     srv.request.ready = true; 
     ROS_INFO("/apriltags_ids_srv service available!");
@@ -54,7 +53,6 @@ int main(int argc, char **argv)
 
     // Create an action client to interact with Node B
     actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction> ac("find_tags", true);
-
     ROS_INFO("Waiting for find_tags server to start (launch node B!)");
     ac.waitForServer();
     ROS_INFO("find_tags server started!");
@@ -62,18 +60,18 @@ int main(int argc, char **argv)
     //create and send a goal
     ir2425_group_08::FindTagsGoal goal;
     goal.target_ids = srv.response.ids;
-
     ROS_INFO("Sending goal to node B via find_tags...");
     ac.sendGoal(goal, actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction>::SimpleDoneCallback(),
                 actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction>::SimpleActiveCallback(),
                 &feedbackCallback);
 
-    ac.waitForResult();
+    //Wait for the action to complete
+    ac.waitForResult(); 
 
-    // Wait for the action to complete
-    while (!ac.waitForResult(ros::Duration(10.0))) {
-        ROS_INFO("Waiting for action to complete...");
-    }
+
+    // while (!ac.waitForResult(ros::Duration(10.0))) {
+    //     ROS_INFO("Waiting for action to complete...");
+    // }
 
     ROS_INFO("It's Over!");
 
