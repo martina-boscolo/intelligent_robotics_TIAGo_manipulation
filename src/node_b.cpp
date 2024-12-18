@@ -107,10 +107,10 @@ public:
                 //     this->AlreadyFoundIds.push_back(tagId);
                 // }
 
-                // Check if this tag already exists in feedback_.alreadyFoundTags
+                // Check if this tag already exists in feedback_.current_detection
                 // bool alreadyExists = std::any_of(
-                //     this->feedback_.alreadyFoundTags.begin(),
-                //     this->feedback_.alreadyFoundTags.end(),
+                //     this->feedback_.current_detection.begin(),
+                //     this->feedback_.alreacurrent_detectiondyFoundTags.end(),
                 //     [&](const apriltag_ros::AprilTagDetection &existingTag)
                 //     {
                 //         return existingTag.id[0] == tagId;
@@ -118,7 +118,7 @@ public:
 
                 if (!isPresent)
                 {
-                    this->feedback_.alreadyFoundTags.push_back(tag);
+                    this->feedback_.current_detection = tag;
                     this->as_.publishFeedback(this->feedback_);
                     ROS_INFO("New valid tag detected: %d", tagId);
                     ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
@@ -137,7 +137,7 @@ public:
     {
         // Deduplicate the IDs in the goal
         this->Ids.clear();
-        for (int id : goal->ids)
+        for (int id : goal->target_ids)
         {
             if (std::find(this->Ids.begin(), this->Ids.end(), id) == this->Ids.end())
             {
