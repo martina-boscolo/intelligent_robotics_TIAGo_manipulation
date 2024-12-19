@@ -24,8 +24,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 
-#include <thread> // For managing parallel execution
-#include <atomic> // For thread-safe flag
+#include <thread> 
+#include <atomic> 
 
 geometry_msgs::Point createPoint(double x, double y, double z)
 {
@@ -138,7 +138,7 @@ public:
                     {
                         // Use the TF listener to transform the pose
                         tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
-                                                      pose_in_camera_frame.header.stamp, ros::Duration(1.0));
+                                                      ros::Time(0), ros::Duration(1.0));
                         tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
 
                         // Print the transformed pose 
@@ -161,6 +161,7 @@ public:
 
                         // Publish the feedback
                         this->feedback_.current_detection = newTag;
+                        this->feedback_.progress_status = AlreadyFoundIds.size();
                         this->as_.publishFeedback(this->feedback_);
                     }
                     catch (tf::TransformException &ex)
@@ -289,7 +290,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "node_b");
     ros::NodeHandle nh;
-    tf::TransformListener tf_listener;
+    tf::TransformListener tf_listener; //not used here
 
     // Debug section for camera
     cv::namedWindow("camera");
@@ -298,9 +299,8 @@ int main(int argc, char **argv)
     lookDown(nh);
     extendTorso();
 
-
     FindTags findTags(nh, "find_tags");
 
-    ros::spin(); //is this really needed? 
+   ros::spin(); //why it's not finishig at the end? could be the camera
     return 0;
 }

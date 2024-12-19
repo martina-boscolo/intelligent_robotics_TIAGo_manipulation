@@ -14,6 +14,7 @@ void feedbackCallback(const ir2425_group_08::FindTagsFeedbackConstPtr &msg)
              tag.pose.pose.pose.position.x,
              tag.pose.pose.pose.position.y,
              tag.pose.pose.pose.position.z);
+    ROS_INFO("Up to now found %f tags.", msg->progress_status);
 
     //TO DO print also status message 
 }
