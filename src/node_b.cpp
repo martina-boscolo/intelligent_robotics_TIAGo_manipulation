@@ -133,7 +133,8 @@ public:
                     geometry_msgs::PoseStamped pose_in_camera_frame;
                     geometry_msgs::PoseStamped pose_in_map_frame;
 
-                    pose_in_camera_frame.header = tag.pose.header;  // Copy the frame_id and timestamp
+                    pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
+                    pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
                     pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
 
                     try
@@ -156,7 +157,7 @@ public:
 
                         // Set the header correctly (frame ID and timestamp)
                         newTag.pose.header.frame_id = "map"; // Target frame
-                        newTag.pose.header.stamp = pose_in_map_frame.header.stamp;
+                        newTag.pose.header.stamp = ros::Time(0);
                         // Copy the tag ID
                         newTag.id = tag.id;
 
