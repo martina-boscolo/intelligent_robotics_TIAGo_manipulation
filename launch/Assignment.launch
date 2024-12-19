@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="ir2425_group_08" type="noda_a" name="noda_a"/>
+    <node pkg="ir2425_group_08" type="noda_b" name="noda_b"/>
+</launch>

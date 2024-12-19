@@ -58,6 +58,8 @@ protected:
     ros::Subscriber sub_;
     tf::TransformListener tf_listener_;
 
+    std::vector <apriltag_ros::AprilTagDetection> foundTags;
+
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
 
@@ -158,6 +160,8 @@ public:
                         // Copy the tag ID
                         newTag.id = tag.id;
 
+                        foundTags.push_back(newTag);
+
 
                         // Publish the feedback
                         this->feedback_.current_detection = newTag;
@@ -229,6 +233,12 @@ public:
 
         ROS_INFO("Publishing result...");
         this->result_.finished = (this->AlreadyFoundIds.size() == this->Ids.size());
+        if (this->AlreadyFoundIds.size() == this->Ids.size()){
+            this->result_.status_message = "All the apriltags have been found!"; 
+            this->result_.detected_tags = foundTags;
+        } else
+           this->result_.status_message = "Not all the apriltags have been found!";
+           
         this->as_.setSucceeded(this->result_);
     }
 };
@@ -250,7 +260,7 @@ void extendTorso()
     goal.trajectory.points.push_back(point);
     goal.trajectory.header.stamp = ros::Time::now();
 
-    ROS_INFO("Sending torso extension goal...");
+    ROS_INFO("Sending goal to torso_controller...");
     ac.sendGoal(goal);
     ac.waitForResult();
     ROS_INFO("Torso fully extended");
@@ -276,10 +286,11 @@ void lookDown(ros::NodeHandle &nh)
 
     ROS_INFO("Sending goal to head_controller...");
     ac.sendGoal(goal);
-
     ac.waitForResult();
     ROS_INFO("Robot is looking down");
 }
+
+
 void cameraCallback(const sensor_msgs::ImageConstPtr &msg)
 {
     cv::imshow("camera", cv_bridge::toCvCopy(msg, msg->encoding)->image);

@@ -14,9 +14,28 @@ void feedbackCallback(const ir2425_group_08::FindTagsFeedbackConstPtr &msg)
              tag.pose.pose.pose.position.x,
              tag.pose.pose.pose.position.y,
              tag.pose.pose.pose.position.z);
-    ROS_INFO("Up to now found %f tags.", msg->progress_status);
+    //ROS_INFO("Robot Status: %s", msg->robot_status.c_str());
+    ROS_INFO("Up to now found %.1f tags.", msg->progress_status);
 
     //TO DO print also status message 
+}
+
+void resultCallback(const actionlib::SimpleClientGoalState &state,
+                    const ir2425_group_08::FindTagsResultConstPtr &result)
+{
+    ROS_INFO("Action finished with state: %s", state.toString().c_str());
+    ROS_INFO("Finished: %s", result->finished ? "true" : "false");
+    ROS_INFO("Status Message: %s", result->status_message.c_str());
+    ROS_INFO("Detected Tags:");
+
+    for (const auto &tag : result->detected_tags)
+    {
+        ROS_INFO(" - ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f",
+                 tag.id[0],
+                 tag.pose.pose.pose.position.x,
+                 tag.pose.pose.pose.position.y,
+                 tag.pose.pose.pose.position.z);
+    }
 }
 
 int main(int argc, char **argv)
@@ -62,7 +81,8 @@ int main(int argc, char **argv)
     ir2425_group_08::FindTagsGoal goal;
     goal.target_ids = srv.response.ids;
     ROS_INFO("Sending goal to node B via find_tags...");
-    ac.sendGoal(goal, actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction>::SimpleDoneCallback(),
+    ac.sendGoal(goal,  
+                &resultCallback,
                 actionlib::SimpleActionClient<ir2425_group_08::FindTagsAction>::SimpleActiveCallback(),
                 &feedbackCallback);
 

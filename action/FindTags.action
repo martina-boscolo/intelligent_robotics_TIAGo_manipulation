@@ -10,6 +10,6 @@ apriltag_ros/AprilTagDetection[] detected_tags
 ---
 # feedback
 string robot_status # Current robot status: "Moving," "Scanning," etc.
-apriltag_ros/AprilTagDetection current_detection  #TO BE CHANGED INTO A SINGLE ELEMENT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-float32 progress_status         # 1/5 tags found
+apriltag_ros/AprilTagDetection current_detection
+float32 progress_status         # 1  tags found
 
