@@ -136,6 +136,7 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/ir2425_group_08_node.cpp)
 add_executable(node_a src/node_a.cpp)
 add_executable(node_b src/node_b.cpp)
+add_executable(node_c src/node_c.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -148,6 +149,7 @@ add_executable(node_b src/node_b.cpp)
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(node_a ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(node_b ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(node_c ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
@@ -155,6 +157,7 @@ add_dependencies(node_b ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_
 # )
 target_link_libraries(node_a ${catkin_LIBRARIES})
 target_link_libraries(node_b ${catkin_LIBRARIES})
+target_link_libraries(node_c ${catkin_LIBRARIES})
 
 #############
 ## Install ##
