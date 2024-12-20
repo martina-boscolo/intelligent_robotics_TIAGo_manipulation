@@ -71,6 +71,9 @@
   <exec_depend>tf</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <depend>tiago_iaslab_simulation</depend>
+  <build_depend>costmap_2d</build_depend>
+  <exec_depend>costmap_2d</exec_depend>
+
 
 
   <!-- The export tag contains other, unspecified, tags -->

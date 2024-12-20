@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   message_generation
   tiago_iaslab_simulation
+  costmap_2d
 )
 
 ## System dependencies are found with CMake's conventions
@@ -112,7 +113,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES tiago_apriltag_detection
-CATKIN_DEPENDS message_runtime geometry_msgs roscpp rospy sensor_msgs std_msgs tf tf2_ros
+CATKIN_DEPENDS message_runtime geometry_msgs roscpp rospy sensor_msgs std_msgs tf tf2_ros costmap_2d
 #  DEPENDS system_lib
 )
 
