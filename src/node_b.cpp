@@ -24,9 +24,6 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 
-#include <thread> 
-#include <atomic> 
-
 geometry_msgs::Point createPoint(double x, double y, double z)
 {
     geometry_msgs::Point p;
@@ -63,8 +60,6 @@ protected:
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
 
-    std::atomic<bool> keepHeadMoving;
-    std::thread headMovementThread;
     bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag)
     {
         if (tag.id.empty())
@@ -90,91 +85,96 @@ public:
     {
         for (const auto &tag : msg->detections)
         {
-            if (tag.id.empty())
-                continue;
-
-            int tagId = tag.id[0];
-            if (this->isNewAndValidTag(tag))
+            if (!tag.id.empty())
             {
-                bool isPresent = false;
-                // Add the tag ID to AlreadyFoundIds only if not already present
-                for (int i =0; i< this->AlreadyFoundIds.size(); i++){
-                    if (AlreadyFoundIds[i]== tagId)
-                      isPresent = true;
-                      break;
-                }
-                if(!isPresent)
-                    this->AlreadyFoundIds.push_back(tagId);
-
-                // if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
-                // {
-                //     this->AlreadyFoundIds.push_back(tagId);
-                // }
-
-                // Check if this tag already exists in feedback_.current_detection
-                // bool alreadyExists = std::any_of(
-                //     this->feedback_.current_detection.begin(),
-                //     this->feedback_.alreacurrent_detectiondyFoundTags.end(),
-                //     [&](const apriltag_ros::AprilTagDetection &existingTag)
-                //     {
-                //         return existingTag.id[0] == tagId;
-                //     });
-
-                //LE STAMPE DEVONO ESSERE SISTEMATE
-                if (!isPresent)
+                int tagId = tag.id[0];
+                if (this->isNewAndValidTag(tag))
                 {
-                    
-                    ROS_INFO("New valid tag detected: %d", tagId);
-                    ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
-                                                                         << ", y: " << tag.pose.pose.pose.position.y
-                                                                         << ", z: " << tag.pose.pose.pose.position.z);
-
-                    // Transform the pose from camera frame to map frame
-                    geometry_msgs::PoseStamped pose_in_camera_frame;
-                    geometry_msgs::PoseStamped pose_in_map_frame;
-
-                    pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
-                    pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
-                    pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
-
-                    try
-                    {
-                        // Use the TF listener to transform the pose
-                        tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
-                                                      ros::Time(0), ros::Duration(1.0));
-                        tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
-
-                        // Print the transformed pose 
-                        ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
-                                                   << pose_in_map_frame.pose.position.x
-                                                   << ", y: " << pose_in_map_frame.pose.position.y
-                                                   << ", z: " << pose_in_map_frame.pose.position.z);
-
-                        apriltag_ros::AprilTagDetection newTag;
-
-                        // Assign the transformed pose properly
-                        newTag.pose.pose.pose = pose_in_map_frame.pose; // Copy both position and orientation
-
-                        // Set the header correctly (frame ID and timestamp)
-                        newTag.pose.header.frame_id = "map"; // Target frame
-                        newTag.pose.header.stamp = ros::Time(0);
-                        // Copy the tag ID
-                        newTag.id = tag.id;
-
-                        foundTags.push_back(newTag);
-
-
-                        // Publish the feedback
-                        this->feedback_.current_detection = newTag;
-                        this->feedback_.progress_status = AlreadyFoundIds.size();
-                        this->as_.publishFeedback(this->feedback_);
+                    bool isPresent = std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) != this->AlreadyFoundIds.end();
+                    // Add the tag ID to AlreadyFoundIds only if not already present
+                    /*
+                    for (int i =0; i< this->AlreadyFoundIds.size(); i++){
+                        if (AlreadyFoundIds[i]== tagId)
+                        isPresent = true;
+                        break;
                     }
-                    catch (tf::TransformException &ex)
+                    */
+                    if(!isPresent)
+                        this->AlreadyFoundIds.push_back(tagId);
+
+                    // if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
+                    // {
+                    //     this->AlreadyFoundIds.push_back(tagId);
+                    // }
+
+                    // Check if this tag already exists in feedback_.current_detection
+                    // bool alreadyExists = std::any_of(
+                    //     this->feedback_.current_detection.begin(),
+                    //     this->feedback_.alreacurrent_detectiondyFoundTags.end(),
+                    //     [&](const apriltag_ros::AprilTagDetection &existingTag)
+                    //     {
+                    //         return existingTag.id[0] == tagId;
+                    //     });
+
+                    //LE STAMPE DEVONO ESSERE SISTEMATE
+                    if (!isPresent)
                     {
-                        ROS_WARN("Failed to transform pose: %s", ex.what());
+                        
+                        ROS_INFO("New valid tag detected: %d", tagId);
+                        ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
+                                                                            << ", y: " << tag.pose.pose.pose.position.y
+                                                                            << ", z: " << tag.pose.pose.pose.position.z);
+
+                        // Transform the pose from camera frame to map frame
+                        geometry_msgs::PoseStamped pose_in_camera_frame;
+                        geometry_msgs::PoseStamped pose_in_map_frame;
+
+                        pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
+                        pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
+                        pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
+
+                        try
+                        {
+                            // Use the TF listener to transform the pose
+                            tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
+                                                        ros::Time(0), ros::Duration(1.0));
+                            tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
+
+                            // Print the transformed pose 
+                            ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
+                                                    << pose_in_map_frame.pose.position.x
+                                                    << ", y: " << pose_in_map_frame.pose.position.y
+                                                    << ", z: " << pose_in_map_frame.pose.position.z);
+
+                            apriltag_ros::AprilTagDetection newTag;
+
+                            // Assign the transformed pose properly
+                            newTag.pose.pose.pose = pose_in_map_frame.pose; // Copy both position and orientation
+
+                            // Set the header correctly (frame ID and timestamp)
+                            newTag.pose.header.frame_id = "map"; // Target frame
+                            newTag.pose.header.stamp = ros::Time(0);
+                            // Copy the tag ID
+                            newTag.id = tag.id;
+
+                            foundTags.push_back(newTag);
+
+
+                            // Publish the feedback
+                            this->feedback_.current_detection = newTag;
+                            this->feedback_.progress_status = AlreadyFoundIds.size();
+                            this->as_.publishFeedback(this->feedback_);
+                        }
+                        catch (tf::TransformException &ex)
+                        {
+                            ROS_WARN("Failed to transform pose: %s", ex.what());
+                        }
                     }
                 }
             }
+                
+
+            
             // else
             // {
             //     ROS_INFO("Invalid or already detected tag: %d", tagId);
