@@ -3,17 +3,18 @@
 
 #include <tiago_iaslab_simulation/Objs.h>
 #include <ir2425_group_08/FindTagsAction.h>
-#include <apriltag_ros/AprilTagDetection.h>
+//#include <apriltag_ros/AprilTagDetection.h>
+#include <geometry_msgs/PoseStamped.h>
 
 void feedbackCallback(const ir2425_group_08::FindTagsFeedbackConstPtr &msg)
 {
-    apriltag_ros::AprilTagDetection tag = msg->current_detection;
+    geometry_msgs::PoseStamped pose = msg->current_detection;
 
     ROS_INFO("Found tag with ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f",
-             tag.id[0],
-             tag.pose.pose.pose.position.x,
-             tag.pose.pose.pose.position.y,
-             tag.pose.pose.pose.position.z);
+             msg->id,
+             pose.pose.position.x,
+             pose.pose.position.y,
+             pose.pose.position.z);
     //ROS_INFO("Robot Status: %s", msg->robot_status.c_str());
     ROS_INFO("Up to now found %.1f tags.", msg->progress_status);
 
@@ -28,6 +29,17 @@ void resultCallback(const actionlib::SimpleClientGoalState &state,
     ROS_INFO("Status Message: %s", result->status_message.c_str());
     ROS_INFO("Detected Tags:");
 
+    for (int i = 0; i < result->ids.size(); ++i)
+    {
+        geometry_msgs::PoseStamped pose = result->detected_tags[i]; 
+        ROS_INFO(" - ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f",
+                 result->ids[i],
+                 pose.pose.position.x,
+                 pose.pose.position.y,
+                 pose.pose.position.z);
+    }
+
+    /*
     for (const auto &tag : result->detected_tags)
     {
         ROS_INFO(" - ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f",
@@ -35,7 +47,7 @@ void resultCallback(const actionlib::SimpleClientGoalState &state,
                  tag.pose.pose.pose.position.x,
                  tag.pose.pose.pose.position.y,
                  tag.pose.pose.pose.position.z);
-    }
+    }*/
 }
 
 int main(int argc, char **argv)

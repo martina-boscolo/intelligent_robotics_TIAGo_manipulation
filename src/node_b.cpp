@@ -55,10 +55,9 @@ protected:
     ros::Subscriber sub_;
     tf::TransformListener tf_listener_;
 
-    std::vector <apriltag_ros::AprilTagDetection> foundTags;
-
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
+    std::vector <geometry_msgs::PoseStamped> AlreadyFoundTags;
 
     bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag)
     {
@@ -146,6 +145,7 @@ public:
                                                     << ", y: " << pose_in_map_frame.pose.position.y
                                                     << ", z: " << pose_in_map_frame.pose.position.z);
 
+                            /*
                             apriltag_ros::AprilTagDetection newTag;
 
                             // Assign the transformed pose properly
@@ -159,9 +159,20 @@ public:
 
                             foundTags.push_back(newTag);
 
-
                             // Publish the feedback
                             this->feedback_.current_detection = newTag;
+                            this->feedback_.progress_status = AlreadyFoundIds.size();
+                            this->as_.publishFeedback(this->feedback_);
+                            */
+
+                            pose_in_map_frame.header.stamp = ros::Time(0);
+                            pose_in_map_frame.header.frame_id = "map";
+
+                            this->AlreadyFoundTags.push_back(pose_in_map_frame);
+
+                            // Publish the feedback
+                            this->feedback_.current_detection = pose_in_map_frame;
+                            this->feedback_.id = tagId;
                             this->feedback_.progress_status = AlreadyFoundIds.size();
                             this->as_.publishFeedback(this->feedback_);
                         }
@@ -172,13 +183,6 @@ public:
                     }
                 }
             }
-                
-
-            
-            // else
-            // {
-            //     ROS_INFO("Invalid or already detected tag: %d", tagId);
-            // }
         }
     }
 
@@ -236,7 +240,8 @@ public:
         this->result_.finished = (this->AlreadyFoundIds.size() == this->Ids.size());
         if (this->AlreadyFoundIds.size() == this->Ids.size()){
             this->result_.status_message = "All the apriltags have been found!"; 
-            this->result_.detected_tags = foundTags;
+            this->result_.ids = this->AlreadyFoundIds;
+            this->result_.detected_tags = this->AlreadyFoundTags;
         } else
            this->result_.status_message = "Not all the apriltags have been found!";
            
