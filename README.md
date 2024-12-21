@@ -3,7 +3,7 @@
 - Tommaso Milanello, tommaso.milanello@studenti.unipd.it 
 - Matteo Ruta, matteo.ruta@studenti.unipd.it 
 
-## Instruction HW1
+## Instruction Assignment 1
 The code for assignment 1 is developed in the ir2425_group_08 package. 
 We list here the detail to run the code.
 Remember to ```> source ~/catkin_ws/devel/setup.bash``` for each new terminal opened. 
