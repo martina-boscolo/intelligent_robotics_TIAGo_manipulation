@@ -38,11 +38,12 @@ std::vector<geometry_msgs::Point> WAYPOINT_LIST =
         createPoint(-0.1, 0.2, 0.0),
         //createPoint(9.5, 0.0, 0.0), //this does not work
         createPoint(12, 1.0, 0.0),
+        //might need a waypoint to see tag 6 here
         createPoint(12.0, -1.0, 0.0),
         createPoint(9.5, -4.0, 0.0),
         createPoint(8.5, -1.5, 0.0),
         createPoint(12.5, -3.0, 0.0),
-        createPoint(13.5, -1.5, 0.0),
+        //createPoint(13.5, -1.5, 0.0), //this does not work
         createPoint(0.0, 0.0, 0.0),
         
 };
