@@ -36,8 +36,8 @@ geometry_msgs::Point createPoint(double x, double y, double z)
 
 std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
-        createPoint(0.0, 0.0, 0.0),
-        createPoint(9.5, 0.0, 0.0),
+        createPoint(-0.1, 0.2, 0.0),
+        //createPoint(9.5, 0.0, 0.0), //this does not work
         createPoint(12, 1.0, 0.0),
         createPoint(12.0, -1.0, 0.0),
         createPoint(9.5, -4.0, 0.0),
@@ -45,6 +45,7 @@ std::vector<geometry_msgs::Point> WAYPOINT_LIST =
         createPoint(12.5, -3.0, 0.0),
         createPoint(13.5, -1.5, 0.0),
         createPoint(0.0, 0.0, 0.0),
+        
 };
 
 class FindTags
