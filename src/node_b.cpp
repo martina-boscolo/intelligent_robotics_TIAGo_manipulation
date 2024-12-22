@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
 #include <actionlib/client/simple_action_client.h>
+//#include <actionlib/client/simple_client_goal_state.h>
 
 #include <ir2425_group_08/FindTagsAction.h>
 #include <apriltag_ros/AprilTagDetectionArray.h>
@@ -55,6 +56,8 @@ protected:
     ros::Subscriber sub_;
     tf::TransformListener tf_listener_;
 
+    actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient_;
+
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
     std::vector <geometry_msgs::PoseStamped> AlreadyFoundTags;
@@ -72,12 +75,19 @@ protected:
     }
 
 public:
-    FindTags(ros::NodeHandle &nh,  std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
+    FindTags(ros::NodeHandle &nh,  std::string server_name)
+        :
+        moveClient_("move_base", true),
+        as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
     {
         this->as_.start();
 
         this->sub_ = nh.subscribe("tag_detections", 1, &FindTags::tagsCallback, this);
         ROS_INFO("Server and tag_detections subscriber started");
+
+        ROS_INFO("Waiting for move_base...");
+        moveClient_.waitForServer();
+        ROS_INFO("move_base server ready");
     }
 
     void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
@@ -174,6 +184,14 @@ public:
                             this->feedback_.current_detection = pose_in_map_frame;
                             this->feedback_.id = tagId;
                             this->feedback_.progress_status = AlreadyFoundIds.size();
+                            if (this->moveClient_.getState() == actionlib::SimpleClientGoalState::ACTIVE)
+                            {
+                                this->feedback_.robot_status = "Moving";
+                            }
+                            else
+                            {
+                                this->feedback_.robot_status = "Unknown";
+                            }
                             this->as_.publishFeedback(this->feedback_);
                         }
                         catch (tf::TransformException &ex)
@@ -200,10 +218,12 @@ public:
 
         int waypointIndex = 0;
 
+        /*
         actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
 
         ROS_INFO("Waiting for move_base...");
         moveClient.waitForServer();
+        */
 
         while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
         {
@@ -218,9 +238,9 @@ public:
                      waypointGoal.target_pose.pose.position.x,
                      waypointGoal.target_pose.pose.position.y);
 
-            moveClient.sendGoal(waypointGoal);
+            this->moveClient_.sendGoal(waypointGoal);
 
-            if (moveClient.waitForResult(ros::Duration(10.0)))
+            if (this->moveClient_.waitForResult(ros::Duration(10.0)))
             {
                 ROS_INFO("Waypoint %d reached", waypointIndex);
                 waypointIndex++;

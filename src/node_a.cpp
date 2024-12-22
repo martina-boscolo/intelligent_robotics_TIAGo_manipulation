@@ -10,13 +10,14 @@ void feedbackCallback(const ir2425_group_08::FindTagsFeedbackConstPtr &msg)
 {
     geometry_msgs::PoseStamped pose = msg->current_detection;
 
-    ROS_INFO("Found tag with ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f",
+    ROS_INFO("Found tag with ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f, Status: %s",
              msg->id,
              pose.pose.position.x,
              pose.pose.position.y,
-             pose.pose.position.z);
+             pose.pose.position.z,
+             msg->robot_status.c_str());
     //ROS_INFO("Robot Status: %s", msg->robot_status.c_str());
-    ROS_INFO("Up to now found %.1f tags.", msg->progress_status);
+    ROS_INFO("Up to now found %d tags.", msg->progress_status);
 
     //TO DO print also status message 
 }

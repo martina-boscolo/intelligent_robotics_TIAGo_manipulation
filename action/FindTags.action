@@ -15,5 +15,5 @@ string robot_status # Current robot status: "Moving," "Scanning," etc.
 int32 id
 geometry_msgs/PoseStamped current_detection
 #apriltag_ros/AprilTagDetection current_detection
-float32 progress_status         # 1  tags found
+int32 progress_status         # 1  tags found
 
