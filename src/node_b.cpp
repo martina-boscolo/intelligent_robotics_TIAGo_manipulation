@@ -11,6 +11,8 @@
 #include <costmap_2d/costmap_2d.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/cost_values.h>
+#include <nav_msgs/OccupancyGrid.h>
+#include <nav_msgs/GetPlan.h>
 #include <vector>
 #include <algorithm>
 #include <utility>
@@ -18,7 +20,8 @@
 ros::Publisher centroid_pub;
 ros::Publisher marker_pub;
 tf::TransformListener* tf_listener_ptr;
-costmap_2d::Costmap2D* global_costmap = nullptr;
+//costmap_2d::Costmap2D* global_costmap = nullptr;
+nav_msgs::OccupancyGrid global_costmap;
 
 std::vector<geometry_msgs::Point> visited_points;       
 std::vector<geometry_msgs::Point> POI;              //coda dovrebbe avere priorità
@@ -207,40 +210,99 @@ void updatePOI(std::vector<geometry_msgs::Point> centroids) {
     }
 }
 
-////////////////////////////////////////////////7
-bool isGoalFeasible(const move_base_msgs::MoveBaseGoal& goal) {
-    if (!global_costmap) {
-        ROS_ERROR("Global costmap is not initialized.");
-        return false;
-    }
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//CRAZY TESTS
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    unsigned int mx, my;
-
-    // Convert world coordinates to map coordinates
-    if (!global_costmap->worldToMap(goal.target_pose.pose.position.x, goal.target_pose.pose.position.y, mx, my)) {
-        ROS_WARN("Goal is out of bounds in the costmap.");
-        return false;
-    }
-
-    // Check the cost at the goal position
-    unsigned char cost = global_costmap->getCost(mx, my);
-
-    if (cost == costmap_2d::LETHAL_OBSTACLE) {
-        ROS_WARN("Goal is in a lethal obstacle.");
-        return false;
-    } else if (cost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
-        ROS_WARN("Goal is too close to an obstacle.");
-        return false;
-    } else if (cost == costmap_2d::NO_INFORMATION) {
-        ROS_WARN("Goal is in an unknown area.");
-        return false;
-    }
-
-    ROS_INFO("Goal is in a free space.");
-    return true;
+// Callback to update the costmap
+void costmapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg) {
+    global_costmap = *msg;
 }
 
+geometry_msgs::PoseStamped getRobotPose() {
+    geometry_msgs::PoseStamped pose;
+    tf::StampedTransform transform;
 
+    try {
+        // Wait for the transform and get the robot's pose in the "map" frame
+        tf_listener_ptr->waitForTransform("map", "base_link", ros::Time(0), ros::Duration(1.0));
+        tf_listener_ptr->lookupTransform("map", "base_link", ros::Time(0), transform);
+
+        pose.header.frame_id = "map";
+        pose.header.stamp = ros::Time::now();
+        pose.pose.position.x = transform.getOrigin().x();
+        pose.pose.position.y = transform.getOrigin().y();
+        pose.pose.position.z = transform.getOrigin().z();
+        pose.pose.orientation.x = transform.getRotation().x();
+        pose.pose.orientation.y = transform.getRotation().y();
+        pose.pose.orientation.z = transform.getRotation().z();
+        pose.pose.orientation.w = transform.getRotation().w();
+    } catch (tf::TransformException& ex) {
+        ROS_ERROR("Transform error: %s", ex.what());
+    }
+
+    return pose;
+}
+
+// bool isGoalFeasible(const move_base_msgs::MoveBaseGoal& goal) {
+//     if (!global_costmap) {
+//         ROS_ERROR("Global costmap is not initialized.");
+//         return false;
+//     }
+
+//     unsigned int mx, my;
+
+//     // Convert world coordinates to map coordinates
+//     if (!global_costmap->worldToMap(goal.target_pose.pose.position.x, goal.target_pose.pose.position.y, mx, my)) {
+//         ROS_WARN("Goal is out of bounds in the costmap.");
+//         return false;
+//     }
+
+//     // Check the cost at the goal position
+//     unsigned char cost = global_costmap->getCost(mx, my);
+
+//     if (cost == costmap_2d::LETHAL_OBSTACLE) {
+//         ROS_WARN("Goal is in a lethal obstacle.");
+//         return false;
+//     } else if (cost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+//         ROS_WARN("Goal is too close to an obstacle.");
+//         return false;
+//     } else if (cost == costmap_2d::NO_INFORMATION) {
+//         ROS_WARN("Goal is in an unknown area.");
+//         return false;
+//     }
+
+//     ROS_INFO("Goal is in a free space.");
+//     return true;
+// }
+
+bool isGoalFeasible(const move_base_msgs::MoveBaseGoal& goal, const geometry_msgs::PoseStamped& start_pose) {
+    ros::NodeHandle nh;
+    ros::ServiceClient client = nh.serviceClient<nav_msgs::GetPlan>("/move_base/make_plan");
+
+    // Create the service request and response
+    nav_msgs::GetPlan srv;
+    srv.request.start = start_pose; // The robot's current pose
+    srv.request.goal = goal.target_pose; // The goal pose
+    srv.request.tolerance = 0.5; // Tolerance in meters for the path
+
+    if (client.call(srv)) {
+        if (!srv.response.plan.poses.empty()) {
+            ROS_INFO("A feasible path exists.");
+            return true;
+        } else {
+            ROS_WARN("No feasible path found.");
+            return false;
+        }
+    } else {
+        ROS_ERROR("Failed to call service /move_base/make_plan.");
+        return false;
+    }
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//END OF CRAZY TESTS
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 void moveTowardsNextPOI(tf::TransformListener& tf_listener, actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>& ac) {
 
@@ -280,7 +342,7 @@ void moveTowardsNextPOI(tf::TransformListener& tf_listener, actionlib::SimpleAct
     }
     goal.target_pose.pose.orientation = geom_quat;
 
-    if(isGoalFeasible(goal)) {
+    if(isGoalFeasible(goal, getRobotPose())) {
         ROS_INFO("MOVING TO NEXT POINT");
         ac.sendGoal(goal);
     }
@@ -304,23 +366,34 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "nodeB");
     ros::NodeHandle nh;
 
-    // Create the Costmap2DROS object
-    tf2_ros::Buffer tfBuffer(ros::Duration(10));
-    tf2_ros::TransformListener tfListener(tfBuffer);
-    costmap_2d::Costmap2DROS global_costmap_ros("global_costmap", tfBuffer);
+    // // Create the Costmap2DROS object
+    // tf2_ros::Buffer tfBuffer(ros::Duration(10));
+    // tf2_ros::TransformListener tfListener(tfBuffer);
+    // costmap_2d::Costmap2DROS global_costmap_ros("global_costmap", tfBuffer);
 
-    // Wait for the costmap to initialize
-    ros::Duration(2.0).sleep(); // Allow some time for initialization
+    // // Wait for the costmap to initialize
+    // ros::Duration(2.0).sleep(); // Allow some time for initialization
 
-    // Retrieve the underlying Costmap2D instance
-    global_costmap = global_costmap_ros.getCostmap();
+    // // Retrieve the underlying Costmap2D instance
+    // global_costmap = global_costmap_ros.getCostmap();
 
-    if (!global_costmap) {
-        ROS_ERROR("Failed to initialize the global costmap.");
-        return -1;
+    // if (!global_costmap) {
+    //     ROS_ERROR("Failed to initialize the global costmap.");
+    //     return -1;
+    // }
+
+    // ROS_INFO("Global costmap initialized successfully.");
+
+    // Subscribe to the costmap topic
+    ros::Subscriber costmap_sub = nh.subscribe("/move_base/global_costmap/costmap", 1, costmapCallback);
+
+    // Wait for costmap to be populated
+    ROS_INFO("Waiting for costmap...");
+    while (global_costmap.data.empty() && ros::ok()) {
+        ros::spinOnce();
+        ros::Duration(0.1).sleep();
     }
-
-    ROS_INFO("Global costmap initialized successfully.");
+    ROS_INFO("Costmap received!");
 
 
     tf::TransformListener tf_listener;
