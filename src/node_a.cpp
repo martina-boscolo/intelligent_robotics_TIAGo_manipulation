@@ -3,23 +3,26 @@
 
 #include <tiago_iaslab_simulation/Objs.h>
 #include <ir2425_group_08/FindTagsAction.h>
-//#include <apriltag_ros/AprilTagDetection.h>
 #include <geometry_msgs/PoseStamped.h>
 
 void feedbackCallback(const ir2425_group_08::FindTagsFeedbackConstPtr &msg)
 {
     geometry_msgs::PoseStamped pose = msg->current_detection;
 
-    ROS_INFO("Found tag with ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f, Status: %s",
-             msg->id,
-             pose.pose.position.x,
-             pose.pose.position.y,
-             pose.pose.position.z,
-             msg->robot_status.c_str());
-    //ROS_INFO("Robot Status: %s", msg->robot_status.c_str());
-    ROS_INFO("Up to now found %d tags.", msg->progress_status);
-
-    //TO DO print also status message 
+    if (msg->id != -1) // means that the feedback is just for the robot status
+    {
+        ROS_INFO("Found tag with ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f, Status: %s",
+                msg->id,
+                pose.pose.position.x,
+                pose.pose.position.y,
+                pose.pose.position.z,
+                msg->robot_status.c_str());
+        ROS_INFO("Up to now found %d tags.", msg->progress_status);
+    }
+    else
+    {
+        ROS_INFO("Status: %s", msg->robot_status.c_str());
+    }
 }
 
 void resultCallback(const actionlib::SimpleClientGoalState &state,
@@ -39,16 +42,6 @@ void resultCallback(const actionlib::SimpleClientGoalState &state,
                  pose.pose.position.y,
                  pose.pose.position.z);
     }
-
-    /*
-    for (const auto &tag : result->detected_tags)
-    {
-        ROS_INFO(" - ID: %d at position (wrt map) - x: %.2f, y: %.2f, z: %.2f",
-                 tag.id[0],
-                 tag.pose.pose.pose.position.x,
-                 tag.pose.pose.pose.position.y,
-                 tag.pose.pose.pose.position.z);
-    }*/
 }
 
 int main(int argc, char **argv)
@@ -100,13 +93,7 @@ int main(int argc, char **argv)
                 &feedbackCallback);
 
     //Wait for the action to complete
-    ac.waitForResult(); 
-
-
-    // while (!ac.waitForResult(ros::Duration(10.0))) {
-    //     ROS_INFO("Waiting for action to complete...");
-    // }
-
+    ac.waitForResult();
     ROS_INFO("It's Over!");
 
    // ros::spin();

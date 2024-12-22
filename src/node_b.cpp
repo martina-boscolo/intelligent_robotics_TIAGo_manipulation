@@ -1,7 +1,6 @@
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
 #include <actionlib/client/simple_action_client.h>
-//#include <actionlib/client/simple_client_goal_state.h>
 
 #include <ir2425_group_08/FindTagsAction.h>
 #include <apriltag_ros/AprilTagDetectionArray.h>
@@ -101,14 +100,7 @@ public:
                 if (this->isNewAndValidTag(tag))
                 {
                     bool isPresent = std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) != this->AlreadyFoundIds.end();
-                    // Add the tag ID to AlreadyFoundIds only if not already present
-                    /*
-                    for (int i =0; i< this->AlreadyFoundIds.size(); i++){
-                        if (AlreadyFoundIds[i]== tagId)
-                        isPresent = true;
-                        break;
-                    }
-                    */
+                    
                     if(!isPresent)
                         this->AlreadyFoundIds.push_back(tagId);
 
@@ -156,26 +148,6 @@ public:
                                                     << ", y: " << pose_in_map_frame.pose.position.y
                                                     << ", z: " << pose_in_map_frame.pose.position.z);
 
-                            /*
-                            apriltag_ros::AprilTagDetection newTag;
-
-                            // Assign the transformed pose properly
-                            newTag.pose.pose.pose = pose_in_map_frame.pose; // Copy both position and orientation
-
-                            // Set the header correctly (frame ID and timestamp)
-                            newTag.pose.header.frame_id = "map"; // Target frame
-                            newTag.pose.header.stamp = ros::Time(0);
-                            // Copy the tag ID
-                            newTag.id = tag.id;
-
-                            foundTags.push_back(newTag);
-
-                            // Publish the feedback
-                            this->feedback_.current_detection = newTag;
-                            this->feedback_.progress_status = AlreadyFoundIds.size();
-                            this->as_.publishFeedback(this->feedback_);
-                            */
-
                             pose_in_map_frame.header.stamp = ros::Time(0);
                             pose_in_map_frame.header.frame_id = "map";
 
@@ -217,14 +189,11 @@ public:
             }
         }
 
+        // preparing robot
+        this->lookDown();
+        this->extendTorso();
+
         int waypointIndex = 0;
-
-        /*
-        actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
-
-        ROS_INFO("Waiting for move_base...");
-        moveClient.waitForServer();
-        */
 
         while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
         {
@@ -241,6 +210,11 @@ public:
 
             this->moveClient_.sendGoal(waypointGoal);
 
+            this->moveClient_.waitForResult();
+            ROS_INFO("Waypoint %d reached", waypointIndex);
+            waypointIndex++;
+
+            /*
             if (this->moveClient_.waitForResult(ros::Duration(10.0)))
             {
                 ROS_INFO("Waypoint %d reached", waypointIndex);
@@ -250,6 +224,7 @@ public:
             {
                 ROS_WARN("Timeout reached for waypoint %d", waypointIndex);
             }
+            */
         }
 
         if (waypointIndex >= WAYPOINT_LIST.size())
@@ -268,55 +243,64 @@ public:
            
         this->as_.setSucceeded(this->result_);
     }
+
+    void extendTorso()
+    {
+        actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> ac("torso_controller/follow_joint_trajectory", true);
+
+        ROS_INFO("Waiting for torso_controller...");
+        ac.waitForServer();
+
+        control_msgs::FollowJointTrajectoryGoal goal;
+        trajectory_msgs::JointTrajectoryPoint point;
+
+        goal.trajectory.joint_names.push_back("torso_lift_joint");
+        point.positions.push_back(0.35);            // Maximum height (adjust based on Tiago specs)
+        point.time_from_start = ros::Duration(2.0); // Time to reach the position
+
+        goal.trajectory.points.push_back(point);
+        goal.trajectory.header.stamp = ros::Time::now();
+
+        ROS_INFO("Sending goal to torso_controller...");
+        ac.sendGoal(goal);
+
+        this->feedback_.id = -1;
+        this->feedback_.robot_status = "Extending torso";
+        this->as_.publishFeedback(this->feedback_);
+
+        ac.waitForResult();
+        ROS_INFO("Torso fully extended");
+    }
+
+    void lookDown()
+    {
+        actionlib::SimpleActionClient<control_msgs::PointHeadAction> ac("head_controller/point_head_action", true);
+
+        ROS_INFO("Waiting for head_controller...");
+        ac.waitForServer();
+
+        control_msgs::PointHeadGoal goal;
+        goal.target.header.stamp = ros::Time(0);
+        goal.target.header.frame_id = "xtion_rgb_optical_frame";
+        goal.target.point.x = 0.0;
+        goal.target.point.y = tan(M_PI / 6); // inclination of 30 degrees
+        goal.target.point.z = 1.0;
+        goal.pointing_axis.z = 1.0;
+        goal.pointing_frame = "xtion_rgb_optical_frame";
+        goal.min_duration = ros::Duration(1.0);
+        goal.max_velocity = 0.6;
+
+        ROS_INFO("Sending goal to head_controller...");
+        ac.sendGoal(goal);
+
+        this->feedback_.id = -1;
+        this->feedback_.robot_status = "Pointing down camera";
+        this->as_.publishFeedback(this->feedback_);
+
+        ac.waitForResult();
+        ROS_INFO("Robot is looking down");
+    }
 };
-
-void extendTorso()
-{
-    actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> ac("torso_controller/follow_joint_trajectory", true);
-
-    ROS_INFO("Waiting for torso_controller...");
-    ac.waitForServer();
-
-    control_msgs::FollowJointTrajectoryGoal goal;
-    trajectory_msgs::JointTrajectoryPoint point;
-
-    goal.trajectory.joint_names.push_back("torso_lift_joint");
-    point.positions.push_back(0.35);            // Maximum height (adjust based on Tiago specs)
-    point.time_from_start = ros::Duration(2.0); // Time to reach the position
-
-    goal.trajectory.points.push_back(point);
-    goal.trajectory.header.stamp = ros::Time::now();
-
-    ROS_INFO("Sending goal to torso_controller...");
-    ac.sendGoal(goal);
-    ac.waitForResult();
-    ROS_INFO("Torso fully extended");
-}
-
-void lookDown(ros::NodeHandle &nh)
-{
-    actionlib::SimpleActionClient<control_msgs::PointHeadAction> ac("head_controller/point_head_action", true);
-
-    ROS_INFO("Waiting for head_controller...");
-    ac.waitForServer();
-
-    control_msgs::PointHeadGoal goal;
-    goal.target.header.stamp = ros::Time(0);
-    goal.target.header.frame_id = "xtion_rgb_optical_frame";
-    goal.target.point.x = 0.0;
-    goal.target.point.y = tan(M_PI / 6); // inclination of 30 degrees
-    goal.target.point.z = 1.0;
-    goal.pointing_axis.z = 1.0;
-    goal.pointing_frame = "xtion_rgb_optical_frame";
-    goal.min_duration = ros::Duration(1.0);
-    goal.max_velocity = 0.6;
-
-    ROS_INFO("Sending goal to head_controller...");
-    ac.sendGoal(goal);
-    ac.waitForResult();
-    ROS_INFO("Robot is looking down");
-}
-
 
 void cameraCallback(const sensor_msgs::ImageConstPtr &msg)
 {
@@ -334,8 +318,10 @@ int main(int argc, char **argv)
     cv::namedWindow("camera");
     ros::Subscriber sub = nh.subscribe("xtion/rgb/image_raw", 1, cameraCallback);
 
+    /*
     lookDown(nh);
     extendTorso();
+    */
 
     FindTags findTags(nh, "find_tags");
 

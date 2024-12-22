@@ -7,13 +7,11 @@ bool finished
 string status_message   #  e.g., "Exploration ended. 3 Apriltags found"
 int32[] ids
 geometry_msgs/PoseStamped[] detected_tags
-#apriltag_ros/AprilTagDetection[] detected_tags
 
 ---
 # feedback
 string robot_status # Current robot status: "Moving," "Scanning," etc.
 int32 id
 geometry_msgs/PoseStamped current_detection
-#apriltag_ros/AprilTagDetection current_detection
 int32 progress_status         # 1  tags found
 
