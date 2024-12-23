@@ -89,14 +89,7 @@ namespace ir2425_group_08
                         this->feedback_.current_detection = pose_in_map_frame;
                         this->feedback_.id = tagId;
                         this->feedback_.progress_status = AlreadyFoundIds.size();
-                        if (this->moveClient_.getState() == actionlib::SimpleClientGoalState::ACTIVE)
-                        {
-                            this->feedback_.robot_status = "Moving";
-                        }
-                        else
-                        {
-                            this->feedback_.robot_status = "Unknown";
-                        }
+                        this->feedback_.robot_status = "Moving";
                         this->as_.publishFeedback(this->feedback_);
                     }
                     catch (tf::TransformException &ex)
