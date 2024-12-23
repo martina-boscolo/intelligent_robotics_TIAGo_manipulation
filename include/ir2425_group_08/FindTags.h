@@ -46,21 +46,19 @@ const double TURN_GAIN = 0.2;    // Gain for angular velocity adjustment
 
 std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
-        //createPoint(-0.1, 0.2, 0.0),
         createPoint(12, 1.0, 0.0),
         createPoint(12.0, -1.0, 0.0),
-        createPoint(9, -1.9, 0.0), // ADDED
+        createPoint(9, -1.9, 0.0), 
         createPoint(9.5, -4.0, 0.0),
         createPoint(8.5, -1.5, 0.0),
-        createPoint(8.7, -3.3, 0.0), // ADDED
-        createPoint(8.5, -3.15, 0.0), // ADDED
-        createPoint(11.5, -3.2, 0.0), // ADDED
+        createPoint(8.7, -3.3, 0.0), 
+        createPoint(8.5, -3.15, 0.0), 
+        createPoint(11.5, -3.2, 0.0), 
         createPoint(12.5, -3.0, 0.0),
-        createPoint(12, 0.0, 0.0), // ADDED
-        createPoint(9.7, 0.7, 0.0), // ADDED
+        createPoint(12, 0.0, 0.0), 
+        createPoint(9.7, 0.7, 0.0),
         createPoint(0.0, 0.0, 0.0),
-        
-};
+    };
 
 namespace ir2425_group_08
 {
