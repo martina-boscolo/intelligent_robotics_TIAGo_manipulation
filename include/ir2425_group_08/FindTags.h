@@ -46,17 +46,16 @@ const double TURN_GAIN = 0.2;    // Gain for angular velocity adjustment
 
 std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
-        createPoint(12, 1.0, 0.0),
-        createPoint(12.0, -1.0, 0.0),
-        createPoint(9, -1.9, 0.0), 
-        createPoint(9.5, -4.0, 0.0),
-        createPoint(8.5, -1.5, 0.0),
-        createPoint(8.7, -3.3, 0.0), 
-        createPoint(8.5, -3.15, 0.0), 
-        createPoint(11.5, -3.2, 0.0), 
-        createPoint(12.5, -3.0, 0.0),
-        createPoint(12, 0.0, 0.0), 
-        createPoint(9.7, 0.7, 0.0),
+        createPoint(12, 0.0, 0.0),
+        createPoint(12.0, 1.0, 0.0),
+        createPoint(11, -3.0, 0.0), 
+        createPoint(9.5, -4.0, 0.0),      
+        createPoint(8.7, -1.8, 0.0),
+        createPoint(7.8, -0.15, 0.0), 
+        createPoint(11.5, 0.5, 0.0), 
+        createPoint(12.5, -1.0, 0.0),
+        createPoint(12.6, -2.6, 0.0),
+        createPoint(9.7, 0.7, 0.0), 
         createPoint(0.0, 0.0, 0.0),
     };
 
@@ -73,9 +72,7 @@ namespace ir2425_group_08
         ros::Subscriber laser_sub_;
         ros::Publisher cmd_vel_pub_;
         tf::TransformListener tf_listener_;
-
         actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient_;
-
         sensor_msgs::LaserScan::ConstPtr latest_laser_msg_;
         bool corridor_done_;
         bool corridor_feedback_sent_; 

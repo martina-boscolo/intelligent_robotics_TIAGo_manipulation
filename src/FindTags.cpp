@@ -221,6 +221,8 @@ namespace ir2425_group_08
            this->result_.detected_tags = this->AlreadyFoundValidTags;
         }
         this->as_.setSucceeded(this->result_);
+        ROS_INFO("All tasks completed. Shutting down the node...");
+        ros::shutdown();
     }
 
     // public methods
@@ -310,7 +312,7 @@ namespace ir2425_group_08
 
     bool FindTags::isInCorridor(const sensor_msgs::LaserScanConstPtr &msg, double &corridor_width)
     {
-        static ros::Time last_feedback_time_ = ros::Time::now(); // To limit feedback frequency
+        static ros::Time last_feedback_time_ = ros::Time::now(); 
         int n_ranges = msg->ranges.size();
         if (n_ranges == 0)
             return false;
@@ -337,8 +339,8 @@ namespace ir2425_group_08
         }
 
         // Analyze forward distances (10% of ranges centered in the forward direction)
-        int forward_start = n_ranges * 0.45; // 45% of the range
-        int forward_end = n_ranges * 0.55;   // 55% of the range
+        int forward_start = n_ranges * 0.45; 
+        int forward_end = n_ranges * 0.55;   
 
         for (int i = forward_start; i < forward_end; ++i)
         {
@@ -362,7 +364,7 @@ namespace ir2425_group_08
         if (parallel_walls && narrow_width && sufficient_length)
         {
             // Limit the frequency of "in corridor" feedback
-            if ((ros::Time::now() - last_feedback_time_).toSec() > 1.0) // 1-second interval
+            if ((ros::Time::now() - last_feedback_time_).toSec() > 1.0) 
             {
                 ROS_INFO("Robot is in a corridor.");
                 this->feedback_.id = -1;
@@ -414,8 +416,6 @@ namespace ir2425_group_08
         cmd_vel_msg.linear.x = (std::min(left_dist, right_dist) > MIN_DISTANCE) ? MAX_SPEED : 0.0;
         cmd_vel_msg.angular.z = angular_z;
 
-        
-        // Debug output
         ROS_INFO("Corridor Navigation: Left Dist: %.2f, Right Dist: %.2f, Angular Z: %.2f",
                  left_dist, right_dist, angular_z);
 
@@ -425,7 +425,7 @@ namespace ir2425_group_08
              this->feedback_.id = -1;
             this->feedback_.robot_status = "Navigating in Corridor";
             this->as_.publishFeedback(this->feedback_);
-            corridor_feedback_sent_ = true; // Feedback has been sent, set flag
+            corridor_feedback_sent_ = true; 
         }
     }
 }
