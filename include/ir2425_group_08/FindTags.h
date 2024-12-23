@@ -14,6 +14,7 @@
 #include <control_msgs/PointHeadAction.h>
 #include <control_msgs/PointHeadGoal.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
+#include <sensor_msgs/LaserScan.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
@@ -39,6 +40,10 @@ geometry_msgs::Point createPoint(double x, double y, double z)
     return p;
 }
 
+const double MIN_DISTANCE = 0.2; // Minimum allowable distance from walls (meters)
+const double MAX_SPEED = 0.2;    // Maximum linear speed (m/s)
+const double TURN_GAIN = 0.2;    // Gain for angular velocity adjustment
+
 std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
         createPoint(-0.1, 0.2, 0.0),
@@ -56,14 +61,19 @@ namespace ir2425_group_08
     class FindTags
     {
     protected:
+        NodeHandleShared nh_ptr_;
         actionlib::SimpleActionServer<ir2425_group_08::FindTagsAction> as_;
-        ros::Publisher cmd_vel_pub;
         ir2425_group_08::FindTagsFeedback feedback_;
         ir2425_group_08::FindTagsResult result_;
-        ros::Subscriber sub_;
+        ros::Subscriber apriltag_sub_;
+        ros::Subscriber laser_sub_;
+        ros::Publisher cmd_vel_pub_;
         tf::TransformListener tf_listener_;
 
         actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient_;
+
+        sensor_msgs::LaserScan::ConstPtr latest_laser_msg_;
+        bool corridor_done_;
 
         std::vector<int> Ids;
         std::vector<int> AlreadyFoundIds;
@@ -76,13 +86,19 @@ namespace ir2425_group_08
 
         void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr& msg);
 
+        void laserCallback(const sensor_msgs::LaserScanConstPtr& msg);
+
         void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr& goal);
 
         void extendTorso();
 
-        void lookDown();
+        void inclineHead(float pitch);
 
         void performFullSpin();
+
+        bool isInCorridor(const sensor_msgs::LaserScanConstPtr& msg, double& corridor_width);
+
+        void navigateInCorridor(const sensor_msgs::LaserScanConstPtr& msg);
     };
 }
 
