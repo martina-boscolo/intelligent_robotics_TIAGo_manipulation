@@ -26,7 +26,7 @@ namespace ir2425_group_08
         this->as_.start();
 
         // Initialize the /cmd_vel publisher
-        this->cmd_vel_pub = nh_ptr->advertise<geometry_msgs::Twist>("/cmd_vel", 10);
+        this->cmd_vel_pub = nh_ptr->advertise<geometry_msgs::Twist>("mobile_base_controller/cmd_vel", 10);
 
         this->sub_ = nh_ptr->subscribe("tag_detections", 1, &FindTags::tagsCallback, this);
         ROS_INFO("Server and tag_detections subscriber started");
@@ -106,6 +106,10 @@ namespace ir2425_group_08
                             ROS_WARN("Failed to transform pose: %s", ex.what());
                         }
                     }
+                }
+                else
+                {
+                    ROS_INFO("Tag detected: %d", tagId);
                 }
             }
         }
@@ -239,6 +243,9 @@ namespace ir2425_group_08
     ros::Time start_time = ros::Time::now();
 
     ROS_INFO("Starting full spin...");
+    this->feedback_.id = -1;
+    this->feedback_.robot_status = "Spinning";
+    this->as_.publishFeedback(this->feedback_);
     while ((ros::Time::now() - start_time).toSec() < spin_duration) {
         this->cmd_vel_pub.publish(twist); // Publish twist message
         rate.sleep();
