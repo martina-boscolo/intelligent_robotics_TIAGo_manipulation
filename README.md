@@ -8,14 +8,18 @@ The code for assignment 1 is developed in the ir2425_group_08 package.
 We list here the detail to run the code.
 Remember to ```> source ~/catkin_ws/devel/setup.bash``` for each new terminal opened. 
 
-The commands of the first four terminals can be launched at the same time in one terminal with ```> roslaunch ir2425_group_08 Config.launch```
+The commands of the first four terminals can be launched at the same time in one terminal with ```> roslaunch ir2425_group_08 Config.launch```. 
+
+For node_a and node_b is instead better to launch them in separate terminals, focusing on the terminal of node_a for the feedback and result messages. 
 
 #### Build the packages
 
-```	> cd ~/catkin_ws
-	> catkin build
-	> source ~/catkin_ws/devel/setup.bash
-```
+```	> cd ~/catkin_ws```
+
+```	> catkin build```
+	
+```	> source ~/catkin_ws/devel/setup.bash```
+
 
 #### Terminal 1: Start the simulation 
 
@@ -34,9 +38,9 @@ The commands of the first four terminals can be launched at the same time in one
 
 ```	> rosrun tiago_iaslab_simulation apriltag_ids_generator_node ```
 
-#### Terminal 5: node a TODO
+#### Terminal 5: node_a 
 
 ```	> rosrun ir2425_group_08 node_a ```
 
-#### Terminal 6: TODO
+#### Terminal 6: node_b
 ```	rosrun ir2425_group_08 node_b```

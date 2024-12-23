@@ -30,7 +30,7 @@ const double MIN_DISTANCE = 0.2; // Minimum allowable distance from walls (meter
 const double MAX_SPEED = 0.2;    // Maximum linear speed (m/s)
 const double TURN_GAIN = 0.2;    // Gain for angular velocity adjustment
 
-ros::Publisher cmd_vel_pub;
+//ros::Publisher cmd_vel_pub;
 
 geometry_msgs::Point createPoint(double x, double y, double z)
 {
@@ -88,6 +88,7 @@ protected:
     ros::NodeHandle nh_;
     ros::Publisher cmd_vel_pub_;
     bool corridor_done_;
+    bool corridor_feedback_sent_; 
 
     bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag)
     {
@@ -105,7 +106,8 @@ public:
     FindTags(ros::NodeHandle &nh, std::string server_name)
         : moveClient_("move_base", true),
           as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false),
-          corridor_done_(false)
+          corridor_done_(false),
+          corridor_feedback_sent_(false)
     {
         this->cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mobile_base_controller/cmd_vel", 10);
         this->as_.start();
@@ -255,10 +257,19 @@ public:
         bool narrow_width = corridor_width < 4.0;                         // Sufficiently narrow
         bool sufficient_length = avg_forward_dist > 2;                  // At least 2 meters ahead
 
-        return parallel_walls && narrow_width && sufficient_length;
+        if (parallel_walls && narrow_width && sufficient_length)
+        {
+            this->feedback_.id = -1;
+            this->feedback_.robot_status = "In a corridor";
+            this->as_.publishFeedback(this->feedback_);
+            return true;
+        }
+        else
+            return false;
+    
     }
 
-    void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publisher &cmd_vel_pub)
+    void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publisher &cmd_vel_pub_)
     {
         double left_dist = 0.0, right_dist = 0.0;
         int n_ranges = msg->ranges.size();
@@ -296,11 +307,19 @@ public:
         cmd_vel_msg.linear.x = (std::min(left_dist, right_dist) > MIN_DISTANCE) ? MAX_SPEED : 0.0;
         cmd_vel_msg.angular.z = angular_z;
 
-        cmd_vel_pub.publish(cmd_vel_msg);
-
+        
         // Debug output
         ROS_INFO("Corridor Navigation: Left Dist: %.2f, Right Dist: %.2f, Angular Z: %.2f",
                  left_dist, right_dist, angular_z);
+
+                    if (!corridor_feedback_sent_)
+        {
+            ROS_INFO("Robot entered the corridor.");
+             this->feedback_.id = -1;
+            this->feedback_.robot_status = "Navigating in Corridor";
+            this->as_.publishFeedback(this->feedback_);
+            corridor_feedback_sent_ = true; // Feedback has been sent, set flag
+        }
     }
 
     void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr &goal)
