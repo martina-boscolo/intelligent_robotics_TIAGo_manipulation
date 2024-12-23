@@ -103,7 +103,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+   INCLUDE_DIRS include
 #  LIBRARIES ir2425_group_08
    CATKIN_DEPENDS std_msgs message_runtime actionlib
 #  DEPENDS system_lib
@@ -121,9 +121,9 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/ir2425_group_08.cpp
-# )
+add_library(${PROJECT_NAME}_find_tags
+  src/FindTags.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -138,7 +138,7 @@ add_executable(node_a src/node_a.cpp)
 add_executable(node_b src/node_b.cpp)
 add_executable(node_b_with_corridor src/node_b_with_corridor.cpp)
 add_executable(node_c src/node_c.cpp)
-add_executable(node_d src/node_d.cpp)
+#add_executable(node_d src/node_d.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -153,17 +153,17 @@ add_dependencies(node_a ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_
 add_dependencies(node_b ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(node_b_with_corridor ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 add_dependencies(node_c ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-add_dependencies(node_d ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+#add_dependencies(node_d ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(node_a ${catkin_LIBRARIES})
-target_link_libraries(node_b ${catkin_LIBRARIES})
+target_link_libraries(node_b ${catkin_LIBRARIES} ${PROJECT_NAME}_find_tags)
 target_link_libraries(node_b_with_corridor ${catkin_LIBRARIES})
 target_link_libraries(node_c ${catkin_LIBRARIES})
-target_link_libraries(node_d ${catkin_LIBRARIES})
+#target_link_libraries(node_d ${catkin_LIBRARIES})
 
 #############
 ## Install ##
