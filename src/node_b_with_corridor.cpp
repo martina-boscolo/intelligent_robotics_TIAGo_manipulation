@@ -107,6 +107,7 @@ public:
         moveClient_("move_base", true),
         as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
     {
+        this->cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mobile_base_controller/cmd_vel", 10);
         this->as_.start();
 
         this->sub_ = nh.subscribe("tag_detections", 1, &FindTags::tagsCallback, this);
