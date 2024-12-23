@@ -207,67 +207,85 @@ public:
         }
     }
 
-    bool isInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, double &corridor_width)
+bool isInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, double &corridor_width)
+{
+    static ros::Time last_feedback_time_ = ros::Time::now(); // To limit feedback frequency
+    int n_ranges = msg->ranges.size();
+    if (n_ranges == 0)
+        return false;
+
+    double left_dist = 0.0, right_dist = 0.0, forward_dist = 0.0;
+    int left_count = 0, right_count = 0, forward_count = 0;
+
+    // Compute distances for left, right, and forward directions
+    for (int i = 0; i < n_ranges / 2; ++i)
     {
-        int n_ranges = msg->ranges.size();
-        if (n_ranges == 0)
-            return false;
-
-        double left_dist = 0.0, right_dist = 0.0, forward_dist = 0.0;
-        int left_count = 0, right_count = 0, forward_count = 0;
-
-        // Compute distances for left, right, and forward directions
-        for (int i = 0; i < n_ranges / 2; ++i)
+        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
         {
-            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
-            {
-                left_dist += msg->ranges[i];
-                left_count++;
-            }
+            left_dist += msg->ranges[i];
+            left_count++;
         }
-        for (int i = n_ranges / 2; i < n_ranges; ++i)
+    }
+    for (int i = n_ranges / 2; i < n_ranges; ++i)
+    {
+        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
         {
-            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
-            {
-                right_dist += msg->ranges[i];
-                right_count++;
-            }
+            right_dist += msg->ranges[i];
+            right_count++;
         }
+    }
 
-        // Analyze forward distances (10% of ranges centered in the forward direction)
-        int forward_start = n_ranges * 0.45; // 45% of the range
-        int forward_end = n_ranges * 0.55;   // 55% of the range
+    // Analyze forward distances (10% of ranges centered in the forward direction)
+    int forward_start = n_ranges * 0.45; // 45% of the range
+    int forward_end = n_ranges * 0.55;   // 55% of the range
 
-        for (int i = forward_start; i < forward_end; ++i)
+    for (int i = forward_start; i < forward_end; ++i)
+    {
+        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
         {
-            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
-            {
-                forward_dist += msg->ranges[i];
-                forward_count++;
-            }
+            forward_dist += msg->ranges[i];
+            forward_count++;
         }
+    }
 
-        double avg_left_dist = (left_count > 0) ? left_dist / left_count : msg->range_max;
-        double avg_right_dist = (right_count > 0) ? right_dist / right_count : msg->range_max;
-        double avg_forward_dist = (forward_count > 0) ? forward_dist / forward_count : msg->range_max;
+    double avg_left_dist = (left_count > 0) ? left_dist / left_count : msg->range_max;
+    double avg_right_dist = (right_count > 0) ? right_dist / right_count : msg->range_max;
+    double avg_forward_dist = (forward_count > 0) ? forward_dist / forward_count : msg->range_max;
 
-        corridor_width = avg_left_dist + avg_right_dist;
+    corridor_width = avg_left_dist + avg_right_dist;
 
-        bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.4; // Walls roughly parallel
-        bool narrow_width = corridor_width < 4.0;                         // Sufficiently narrow
-        bool sufficient_length = avg_forward_dist > 2;                  // At least 2 meters ahead
+    bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.9; // Walls roughly parallel
+    bool narrow_width = corridor_width < 3.0;                         // Sufficiently narrow
+    bool sufficient_length = avg_forward_dist > 2;                    // At least 2 meters ahead
 
-        if (parallel_walls && narrow_width && sufficient_length)
+    if (parallel_walls && narrow_width && sufficient_length)
+    {
+        // Limit the frequency of "in corridor" feedback
+        if ((ros::Time::now() - last_feedback_time_).toSec() > 1.0) // 1-second interval
         {
+            ROS_INFO("Robot is in a corridor.");
             this->feedback_.id = -1;
             this->feedback_.robot_status = "In a corridor";
             this->as_.publishFeedback(this->feedback_);
-            return true;
+            last_feedback_time_ = ros::Time::now();
         }
-        else
-            return false;
-    
+        return true;
     }
+    else
+    {
+        // // Provide "out of corridor" feedback
+        // if ((ros::Time::now() - last_feedback_time_).toSec() > 1.0) // 1-second interval
+        // {
+        //     ROS_WARN("Robot is out of the corridor.");
+        //     this->feedback_.id = -1;
+        //     this->feedback_.robot_status = "Out of the corridor";
+        //     this->as_.publishFeedback(this->feedback_);
+        //     last_feedback_time_ = ros::Time::now();
+        // }
+        return false;
+    }
+}
+
 
     void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publisher &cmd_vel_pub_)
     {
@@ -350,15 +368,33 @@ public:
             "/scan", 1,
             [&](const sensor_msgs::LaserScan::ConstPtr &msg)
             {
+                static ros::Time corridor_start_time = ros::Time(0);
+                ros::Duration corridor_duration(5.0); // Stay in corridor mode for 5 seconds
+
                 latest_laser_msg_ = msg; // Store the latest laser scan
                 double corridor_width = 0.0;
-                if (isInCorridor(msg, corridor_width))
-                {
-                    ROS_INFO("Detected corridor. Navigating directly...");
-                    navigateInCorridor(msg, cmd_vel_pub_);
-                    corridor_done_ = true;
-                }
-            });
+                        if (corridor_done_) {
+            // Already in corridor mode, check if duration has passed
+            if (ros::Time::now() - corridor_start_time < corridor_duration) {
+                ROS_INFO("Still navigating in the corridor...");
+                navigateInCorridor(msg, cmd_vel_pub_); // Continue navigating
+            } else {
+                ROS_INFO("Finished corridor navigation.");
+                this->feedback_.id = -1;
+                this->feedback_.robot_status = "Finished corridor navigation.";
+                this->as_.publishFeedback(this->feedback_);
+                corridor_done_ = false; // Exit corridor mode
+            }
+        } else {
+            // Check if we're entering a corridor
+            if (isInCorridor(msg, corridor_width)) {
+                ROS_INFO("Detected corridor. Starting navigation...");
+                corridor_done_ = true;
+                corridor_start_time = ros::Time::now(); // Record entry time
+                navigateInCorridor(msg, cmd_vel_pub_); // Start navigating
+            }
+        }
+    });
 
         while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
         {
