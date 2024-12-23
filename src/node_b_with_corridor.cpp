@@ -27,8 +27,8 @@
 #include <sensor_msgs/Image.h>
 
 const double MIN_DISTANCE = 0.2; // Minimum allowable distance from walls (meters)
-const double MAX_SPEED = 0.3;   // Maximum linear speed (m/s)
-const double TURN_GAIN = 1.0;   // Gain for angular velocity adjustment
+const double MAX_SPEED = 0.2;    // Maximum linear speed (m/s)
+const double TURN_GAIN = 0.2;    // Gain for angular velocity adjustment
 
 ros::Publisher cmd_vel_pub;
 
@@ -44,30 +44,29 @@ geometry_msgs::Point createPoint(double x, double y, double z)
 std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
 
-//   createPoint(-0.1, 0.2, 0.0),
-//         createPoint(9, -1.9, 0.0),
-//         createPoint(8.7, -3.3, 0.0),
-//         createPoint(8.5, -3.15, 0.0),
-//         createPoint(9.6, -4, 0.0),
-//         createPoint(11.5, -3.2, 0.0),
-//         createPoint(12.4, -3.5, 0.0),
-//         createPoint(11.7, -1.2, 0.0),
-//         createPoint(12, 0.0, 0.0),
-//         createPoint(9.7, 0.7, 0.0),
-//         createPoint(0.0, 0.0, 0.0)
-
+        //   createPoint(-0.1, 0.2, 0.0),
+        //         createPoint(9, -1.9, 0.0),
+        //         createPoint(8.7, -3.3, 0.0),
+        //         createPoint(8.5, -3.15, 0.0),
+        //         createPoint(9.6, -4, 0.0),
+        //         createPoint(11.5, -3.2, 0.0),
+        //         createPoint(12.4, -3.5, 0.0),
+        //         createPoint(11.7, -1.2, 0.0),
+        //         createPoint(12, 0.0, 0.0),
+        //         createPoint(9.7, 0.7, 0.0),
+        //         createPoint(0.0, 0.0, 0.0)
 
         createPoint(-0.1, 0.2, 0.0),
-        //createPoint(9.5, 0.0, 0.0), //this does not work
+        // createPoint(9.5, 0.0, 0.0), //this does not work
         createPoint(12, 1.0, 0.0),
-        //might need a waypoint to see tag 6 here
+        // might need a waypoint to see tag 6 here
         createPoint(12.0, -1.0, 0.0),
         createPoint(9.5, -4.0, 0.0),
         createPoint(8.5, -1.5, 0.0),
         createPoint(12.5, -3.0, 0.0),
-        //createPoint(13.5, -1.5, 0.0), //this does not work
+        // createPoint(13.5, -1.5, 0.0), //this does not work
         createPoint(0.0, 0.0, 0.0),
-        
+
 };
 
 class FindTags
@@ -83,11 +82,12 @@ protected:
 
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
-    std::vector <geometry_msgs::PoseStamped> AlreadyFoundTags;
+    std::vector<geometry_msgs::PoseStamped> AlreadyFoundTags;
 
-   sensor_msgs::LaserScan::ConstPtr latest_laser_msg_;
-ros::NodeHandle nh_;
+    sensor_msgs::LaserScan::ConstPtr latest_laser_msg_;
+    ros::NodeHandle nh_;
     ros::Publisher cmd_vel_pub_;
+    bool corridor_done_;
 
     bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag)
     {
@@ -102,10 +102,10 @@ ros::NodeHandle nh_;
     }
 
 public:
-    FindTags(ros::NodeHandle &nh,  std::string server_name)
-        :
-        moveClient_("move_base", true),
-        as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
+    FindTags(ros::NodeHandle &nh, std::string server_name)
+        : moveClient_("move_base", true),
+          as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false),
+          corridor_done_(false)
     {
         this->cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mobile_base_controller/cmd_vel", 10);
         this->as_.start();
@@ -128,8 +128,8 @@ public:
                 if (this->isNewAndValidTag(tag))
                 {
                     bool isPresent = std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) != this->AlreadyFoundIds.end();
-                    
-                    if(!isPresent)
+
+                    if (!isPresent)
                         this->AlreadyFoundIds.push_back(tagId);
 
                     // if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
@@ -146,35 +146,35 @@ public:
                     //         return existingTag.id[0] == tagId;
                     //     });
 
-                    //LE STAMPE DEVONO ESSERE SISTEMATE
+                    // LE STAMPE DEVONO ESSERE SISTEMATE
                     if (!isPresent)
                     {
-                        
+
                         ROS_INFO("New valid tag detected: %d", tagId);
                         ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
-                                                                            << ", y: " << tag.pose.pose.pose.position.y
-                                                                            << ", z: " << tag.pose.pose.pose.position.z);
+                                                                             << ", y: " << tag.pose.pose.pose.position.y
+                                                                             << ", z: " << tag.pose.pose.pose.position.z);
 
                         // Transform the pose from camera frame to map frame
                         geometry_msgs::PoseStamped pose_in_camera_frame;
                         geometry_msgs::PoseStamped pose_in_map_frame;
 
                         pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
-                        pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
-                        pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
+                        pose_in_camera_frame.header.stamp = ros::Time(0); // Copy the frame_id and timestamp
+                        pose_in_camera_frame.pose = tag.pose.pose.pose;   // Copy the pose
 
                         try
                         {
                             // Use the TF listener to transform the pose
                             tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
-                                                        ros::Time(0), ros::Duration(1.0));
+                                                          ros::Time(0), ros::Duration(1.0));
                             tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
 
-                            // Print the transformed pose 
+                            // Print the transformed pose
                             ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
-                                                    << pose_in_map_frame.pose.position.x
-                                                    << ", y: " << pose_in_map_frame.pose.position.y
-                                                    << ", z: " << pose_in_map_frame.pose.position.z);
+                                                       << pose_in_map_frame.pose.position.x
+                                                       << ", y: " << pose_in_map_frame.pose.position.y
+                                                       << ", z: " << pose_in_map_frame.pose.position.z);
 
                             pose_in_map_frame.header.stamp = ros::Time(0);
                             pose_in_map_frame.header.frame_id = "map";
@@ -205,91 +205,103 @@ public:
         }
     }
 
+    bool isInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, double &corridor_width)
+    {
+        int n_ranges = msg->ranges.size();
+        if (n_ranges == 0)
+            return false;
 
-bool isInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, double &corridor_width) {
-    int n_ranges = msg->ranges.size();
-    if (n_ranges == 0) return false;
+        double left_dist = 0.0, right_dist = 0.0, forward_dist = 0.0;
+        int left_count = 0, right_count = 0, forward_count = 0;
 
-    double left_dist = 0.0, right_dist = 0.0, forward_dist = 0.0;
-    int left_count = 0, right_count = 0, forward_count = 0;
-
-    // Compute distances for left, right, and forward directions
-    for (int i = 0; i < n_ranges / 2; ++i) {
-        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min) {
-            left_dist += msg->ranges[i];
-            left_count++;
+        // Compute distances for left, right, and forward directions
+        for (int i = 0; i < n_ranges / 2; ++i)
+        {
+            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
+            {
+                left_dist += msg->ranges[i];
+                left_count++;
+            }
         }
-    }
-    for (int i = n_ranges / 2; i < n_ranges; ++i) {
-        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min) {
-            right_dist += msg->ranges[i];
-            right_count++;
+        for (int i = n_ranges / 2; i < n_ranges; ++i)
+        {
+            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
+            {
+                right_dist += msg->ranges[i];
+                right_count++;
+            }
         }
-    }
 
-    // Analyze forward distances (10% of ranges centered in the forward direction)
-    int forward_start = n_ranges * 0.45; // 45% of the range
-    int forward_end = n_ranges * 0.55;   // 55% of the range
+        // Analyze forward distances (10% of ranges centered in the forward direction)
+        int forward_start = n_ranges * 0.45; // 45% of the range
+        int forward_end = n_ranges * 0.55;   // 55% of the range
 
-    for (int i = forward_start; i < forward_end; ++i) {
-        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min) {
-            forward_dist += msg->ranges[i];
-            forward_count++;
+        for (int i = forward_start; i < forward_end; ++i)
+        {
+            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
+            {
+                forward_dist += msg->ranges[i];
+                forward_count++;
+            }
         }
-    }
 
-    double avg_left_dist = (left_count > 0) ? left_dist / left_count : msg->range_max;
-    double avg_right_dist = (right_count > 0) ? right_dist / right_count : msg->range_max;
-    double avg_forward_dist = (forward_count > 0) ? forward_dist / forward_count : msg->range_max;
+        double avg_left_dist = (left_count > 0) ? left_dist / left_count : msg->range_max;
+        double avg_right_dist = (right_count > 0) ? right_dist / right_count : msg->range_max;
+        double avg_forward_dist = (forward_count > 0) ? forward_dist / forward_count : msg->range_max;
 
-    corridor_width = avg_left_dist + avg_right_dist;
+        corridor_width = avg_left_dist + avg_right_dist;
 
-    bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.2; // Walls roughly parallel
-    bool narrow_width = corridor_width < 4.0;                         // Sufficiently narrow
-    bool sufficient_length = avg_forward_dist > 0.5;                  // At least 0.5 meters ahead
+        bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.4; // Walls roughly parallel
+        bool narrow_width = corridor_width < 4.0;                         // Sufficiently narrow
+        bool sufficient_length = avg_forward_dist > 2;                  // At least 2 meters ahead
 
-    return parallel_walls && narrow_width && sufficient_length;
-}
-
-
-
-void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publisher &cmd_vel_pub) {
-    double left_dist = 0.0, right_dist = 0.0;
-    int n_ranges = msg->ranges.size();
-
-    int left_count = 0, right_count = 0;
-
-    // Compute average distances for left and right sides
-    for (int i = 0; i < n_ranges / 2; ++i) {
-        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min) {
-            left_dist += msg->ranges[i];
-            left_count++;
-        }
-    }
-    for (int i = n_ranges / 2; i < n_ranges; ++i) {
-        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min) {
-            right_dist += msg->ranges[i];
-            right_count++;
-        }
+        return parallel_walls && narrow_width && sufficient_length;
     }
 
-    if (left_count > 0) left_dist /= left_count;
-    if (right_count > 0) right_dist /= right_count;
+    void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publisher &cmd_vel_pub)
+    {
+        double left_dist = 0.0, right_dist = 0.0;
+        int n_ranges = msg->ranges.size();
 
-    // Centering logic
-    double angular_z = (right_dist - left_dist) * TURN_GAIN;
+        int left_count = 0, right_count = 0;
 
-    // Ensure forward movement
-    geometry_msgs::Twist cmd_vel_msg;
-    cmd_vel_msg.linear.x = (std::min(left_dist, right_dist) > MIN_DISTANCE) ? MAX_SPEED : 0.0;
-    cmd_vel_msg.angular.z = angular_z;
+        // Compute average distances for left and right sides
+        for (int i = 0; i < n_ranges / 2; ++i)
+        {
+            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
+            {
+                left_dist += msg->ranges[i];
+                left_count++;
+            }
+        }
+        for (int i = n_ranges / 2; i < n_ranges; ++i)
+        {
+            if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min)
+            {
+                right_dist += msg->ranges[i];
+                right_count++;
+            }
+        }
 
-    cmd_vel_pub.publish(cmd_vel_msg);
+        if (left_count > 0)
+            left_dist /= left_count;
+        if (right_count > 0)
+            right_dist /= right_count;
 
-    // Debug output
-    ROS_INFO("Corridor Navigation: Left Dist: %.2f, Right Dist: %.2f, Angular Z: %.2f",
-             left_dist, right_dist, angular_z);
-}
+        // Centering logic
+        double angular_z = (right_dist - left_dist) * TURN_GAIN;
+
+        // Ensure forward movement
+        geometry_msgs::Twist cmd_vel_msg;
+        cmd_vel_msg.linear.x = (std::min(left_dist, right_dist) > MIN_DISTANCE) ? MAX_SPEED : 0.0;
+        cmd_vel_msg.angular.z = angular_z;
+
+        cmd_vel_pub.publish(cmd_vel_msg);
+
+        // Debug output
+        ROS_INFO("Corridor Navigation: Left Dist: %.2f, Right Dist: %.2f, Angular Z: %.2f",
+                 left_dist, right_dist, angular_z);
+    }
 
     void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr &goal)
     {
@@ -311,58 +323,64 @@ void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publis
 
         actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
 
-    ROS_INFO("Waiting for move_base...");
-    moveClient.waitForServer();
+        ROS_INFO("Waiting for move_base...");
+        moveClient.waitForServer();
 
-    // Subscribe to laser scans for corridor navigation
-ros::Subscriber laser_sub = nh_.subscribe<sensor_msgs::LaserScan>(
-    "/scan", 1,
-    [&](const sensor_msgs::LaserScan::ConstPtr &msg) {
-        latest_laser_msg_ = msg; // Store the latest laser scan
-        double corridor_width = 0.0;
-        if (isInCorridor(msg, corridor_width)) {
-            ROS_INFO("Detected corridor. Navigating directly...");
-            navigateInCorridor(msg, cmd_vel_pub_);
-        }
-    });
-
+        // Subscribe to laser scans for corridor navigation
+        ros::Subscriber laser_sub = nh_.subscribe<sensor_msgs::LaserScan>(
+            "/scan", 1,
+            [&](const sensor_msgs::LaserScan::ConstPtr &msg)
+            {
+                latest_laser_msg_ = msg; // Store the latest laser scan
+                double corridor_width = 0.0;
+                if (isInCorridor(msg, corridor_width))
+                {
+                    ROS_INFO("Detected corridor. Navigating directly...");
+                    navigateInCorridor(msg, cmd_vel_pub_);
+                    corridor_done_ = true;
+                }
+            });
 
         while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
         {
             double corridor_width = 0.0;
 
-        if (latest_laser_msg_ && !isInCorridor(latest_laser_msg_, corridor_width)) {
-
-            // Use move_base if not in a corridor
-            move_base_msgs::MoveBaseGoal waypointGoal;
-            waypointGoal.target_pose.header.stamp = ros::Time::now();
-            waypointGoal.target_pose.header.frame_id = "map";
-            waypointGoal.target_pose.pose.position = WAYPOINT_LIST[waypointIndex];
-            waypointGoal.target_pose.pose.orientation.w = 1.0;
-
-            ROS_INFO("Moving to waypoint %d: x=%.2f, y=%.2f",
-                     waypointIndex,
-                     waypointGoal.target_pose.pose.position.x,
-                     waypointGoal.target_pose.pose.position.y);
-
-            this->moveClient_.sendGoal(waypointGoal);
-
-            this->moveClient_.waitForResult();
-            ROS_INFO("Waypoint %d reached", waypointIndex);
-            waypointIndex++;
-
-            /*
-            if (this->moveClient_.waitForResult(ros::Duration(10.0)))
+            if (!corridor_done_ && latest_laser_msg_ && isInCorridor(latest_laser_msg_, corridor_width))
             {
-                ROS_INFO("Waypoint %d reached", waypointIndex);
-                waypointIndex++;
+                ROS_INFO("Corridor already processed. Skipping...");
             }
             else
             {
-                ROS_WARN("Timeout reached for waypoint %d", waypointIndex);
+                // Use move_base if not in a corridor
+                move_base_msgs::MoveBaseGoal waypointGoal;
+                waypointGoal.target_pose.header.stamp = ros::Time::now();
+                waypointGoal.target_pose.header.frame_id = "map";
+                waypointGoal.target_pose.pose.position = WAYPOINT_LIST[waypointIndex];
+                waypointGoal.target_pose.pose.orientation.w = 1.0;
+
+                ROS_INFO("Moving to waypoint %d: x=%.2f, y=%.2f",
+                         waypointIndex,
+                         waypointGoal.target_pose.pose.position.x,
+                         waypointGoal.target_pose.pose.position.y);
+
+                this->moveClient_.sendGoal(waypointGoal);
+
+                this->moveClient_.waitForResult();
+                ROS_INFO("Waypoint %d reached", waypointIndex);
+                waypointIndex++;
+
+                /*
+                if (this->moveClient_.waitForResult(ros::Duration(10.0)))
+                {
+                    ROS_INFO("Waypoint %d reached", waypointIndex);
+                    waypointIndex++;
+                }
+                else
+                {
+                    ROS_WARN("Timeout reached for waypoint %d", waypointIndex);
+                }
+                */
             }
-            */
-        }
         }
 
         if (waypointIndex >= WAYPOINT_LIST.size())
@@ -372,13 +390,15 @@ ros::Subscriber laser_sub = nh_.subscribe<sensor_msgs::LaserScan>(
 
         ROS_INFO("Publishing result...");
         this->result_.finished = (this->AlreadyFoundIds.size() == this->Ids.size());
-        if (this->AlreadyFoundIds.size() == this->Ids.size()){
-            this->result_.status_message = "All the apriltags have been found!"; 
+        if (this->AlreadyFoundIds.size() == this->Ids.size())
+        {
+            this->result_.status_message = "All the apriltags have been found!";
             this->result_.ids = this->AlreadyFoundIds;
             this->result_.detected_tags = this->AlreadyFoundTags;
-        } else
-           this->result_.status_message = "Not all the apriltags have been found!";
-           
+        }
+        else
+            this->result_.status_message = "Not all the apriltags have been found!";
+
         this->as_.setSucceeded(this->result_);
     }
 
@@ -450,7 +470,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "node_b");
     ros::NodeHandle nh;
-    tf::TransformListener tf_listener; //not used here
+    tf::TransformListener tf_listener; // not used here
 
     // Debug section for camera
     cv::namedWindow("camera");
@@ -463,7 +483,6 @@ int main(int argc, char **argv)
 
     FindTags findTags(nh, "find_tags");
 
-   ros::spin(); //why it's not finishig at the end? could be the camera
+    ros::spin(); // why it's not finishig at the end? could be the camera
     return 0;
 }
-
