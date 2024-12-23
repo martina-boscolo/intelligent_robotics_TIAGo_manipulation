@@ -84,7 +84,8 @@ namespace ir2425_group_08
 
         std::vector<int> Ids;
         std::vector<int> AlreadyFoundIds;
-        std::vector <geometry_msgs::PoseStamped> AlreadyFoundTags;
+        std::vector <geometry_msgs::PoseStamped> AlreadyFoundValidTags;
+        std::vector <bool> AlreadyFoundTags;
 
         bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag);
 
