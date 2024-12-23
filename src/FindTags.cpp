@@ -112,9 +112,8 @@ namespace ir2425_group_08
     void FindTags::laserCallback(const sensor_msgs::LaserScanConstPtr &msg)
     {
         static ros::Time corridor_start_time = ros::Time(0);
-        ros::Duration corridor_duration(5.0); // Stay in corridor mode for 5 seconds
-
-        latest_laser_msg_ = msg; // Store the latest laser scan
+        ros::Duration corridor_duration(8.0); //stays in corridor mode for 8 seconds
+        latest_laser_msg_ = msg; 
         double corridor_width = 0.0;
         if (corridor_done_)
         {
