@@ -35,22 +35,6 @@ namespace ir2425_group_08
         ROS_INFO("Waiting for move_base...");
         moveClient_.waitForServer();
         ROS_INFO("move_base server ready");
-
-        /*
-        this->laser_sub_ = nh_ptr->subscribe<sensor_msgs::LaserScan>(
-            "/scan", 1,
-            [&](const sensor_msgs::LaserScan::ConstPtr& msg)
-            {
-                latest_laser_msg_ = msg; // Store the latest laser scan
-                double corridor_width = 0.0;
-                if (this->isInCorridor(msg, corridor_width))
-                {
-                    ROS_INFO("Detected corridor. Navigating directly...");
-                    this->navigateInCorridor(msg);
-                    corridor_done_ = true;
-                }
-            });
-        */
     }
 
     // public callbacks
@@ -168,6 +152,12 @@ namespace ir2425_group_08
             }
             else
             {
+                // spin every 3 waypoints
+                if (waypointIndex > 0 && waypointIndex % 3 == 0)
+                {
+                    this->performFullSpin();
+                }
+
                 // Use move_base if not in a corridor
                 move_base_msgs::MoveBaseGoal waypointGoal;
                 waypointGoal.target_pose.header.stamp = ros::Time::now();
@@ -257,7 +247,7 @@ namespace ir2425_group_08
         ac.sendGoal(goal);
 
         this->feedback_.id = -1;
-        this->feedback_.robot_status = "Pointing down camera";
+        this->feedback_.robot_status = "Inclining head";
         this->as_.publishFeedback(this->feedback_);
 
         ac.waitForResult();
@@ -340,7 +330,15 @@ namespace ir2425_group_08
         bool narrow_width = corridor_width < 4.0;                         // Sufficiently narrow
         bool sufficient_length = avg_forward_dist > 2;                  // At least 2 meters ahead
 
-        return parallel_walls && narrow_width && sufficient_length;
+        if (parallel_walls && narrow_width && sufficient_length)
+        {
+            this->feedback_.id = -1;
+            this->feedback_.robot_status = "In a corridor";
+            this->as_.publishFeedback(this->feedback_);
+            return true;
+        }
+        else
+            return false;
     }
 
     void FindTags::navigateInCorridor(const sensor_msgs::LaserScanConstPtr& msg)
@@ -381,10 +379,18 @@ namespace ir2425_group_08
         cmd_vel_msg.linear.x = (std::min(left_dist, right_dist) > MIN_DISTANCE) ? MAX_SPEED : 0.0;
         cmd_vel_msg.angular.z = angular_z;
 
-        this->cmd_vel_pub_.publish(cmd_vel_msg);
-
+        
         // Debug output
         ROS_INFO("Corridor Navigation: Left Dist: %.2f, Right Dist: %.2f, Angular Z: %.2f",
                  left_dist, right_dist, angular_z);
+
+        if (!corridor_feedback_sent_)
+        {
+            ROS_INFO("Robot entered the corridor.");
+             this->feedback_.id = -1;
+            this->feedback_.robot_status = "Navigating in Corridor";
+            this->as_.publishFeedback(this->feedback_);
+            corridor_feedback_sent_ = true; // Feedback has been sent, set flag
+        }
     }
 }
