@@ -24,7 +24,8 @@ namespace ir2425_group_08
         moveClient_("move_base", true),
         as_(*nh_ptr, server_name, boost::bind(&FindTags::mainCycle, this, _1), false),
           corridor_done_(false),
-          corridor_feedback_sent_(false)
+          corridor_feedback_sent_(false),
+          AlreadyFoundTags(15, false)
     {
         this->as_.start();
 
@@ -51,6 +52,7 @@ namespace ir2425_group_08
                 if (this->isNewAndValidTag(tag))
                 {
                     this->AlreadyFoundIds.push_back(tagId);
+                    this->AlreadyFoundTags[tagId] = true;
                    
                     ROS_INFO("New valid tag detected: %d", tagId);
                     ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
@@ -81,7 +83,7 @@ namespace ir2425_group_08
                         pose_in_map_frame.header.stamp = ros::Time(0);
                         pose_in_map_frame.header.frame_id = "map";
 
-                        this->AlreadyFoundTags.push_back(pose_in_map_frame);
+                        this->AlreadyFoundValidTags.push_back(pose_in_map_frame);
 
                         // Publish the feedback
                         this->feedback_.current_detection = pose_in_map_frame;
@@ -104,7 +106,11 @@ namespace ir2425_group_08
                 }
                 else
                 {
-                    ROS_INFO("Tag detected: %d", tagId);
+                    if(!this->AlreadyFoundTags[tagId])
+                    {
+                        this->AlreadyFoundTags[tagId] = true;
+                        ROS_INFO("Tag detected: %d", tagId);
+                    }     
                 }
             }
         }
@@ -215,11 +221,11 @@ namespace ir2425_group_08
         if (this->AlreadyFoundIds.size() == this->Ids.size()){
             this->result_.status_message = "All the apriltags have been found!"; 
             this->result_.ids = this->AlreadyFoundIds;
-            this->result_.detected_tags = this->AlreadyFoundTags;
+            this->result_.detected_tags = this->AlreadyFoundValidTags;
         } else{
            this->result_.status_message = "Not all the apriltags have been found!";
            this->result_.ids = this->AlreadyFoundIds;
-           this->result_.detected_tags = this->AlreadyFoundTags;
+           this->result_.detected_tags = this->AlreadyFoundValidTags;
         }
         this->as_.setSucceeded(this->result_);
     }
