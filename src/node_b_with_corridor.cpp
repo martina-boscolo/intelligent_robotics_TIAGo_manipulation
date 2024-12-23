@@ -15,21 +15,17 @@
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
+#include <sensor_msgs/LaserScan.h>
+#include <geometry_msgs/Twist.h>
 #include <tf/transform_listener.h>
 
 #include <string>
 #include <math.h>
-#include <algorithm>
-#include <vector>
-
 
 #include <opencv2/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 
-#include <sensor_msgs/LaserScan.h>
-#include <geometry_msgs/Twist.h>
-// Parameters for controlling the robot
 const double MIN_DISTANCE = 0.2; // Minimum allowable distance from walls (meters)
 const double MAX_SPEED = 0.3;   // Maximum linear speed (m/s)
 const double TURN_GAIN = 1.0;   // Gain for angular velocity adjustment
@@ -47,15 +43,31 @@ geometry_msgs::Point createPoint(double x, double y, double z)
 
 std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
-        // createPoint(0.0, 0.0, 0.0),
-        createPoint(9.5, 0.0, 0.0),
+
+//   createPoint(-0.1, 0.2, 0.0),
+//         createPoint(9, -1.9, 0.0),
+//         createPoint(8.7, -3.3, 0.0),
+//         createPoint(8.5, -3.15, 0.0),
+//         createPoint(9.6, -4, 0.0),
+//         createPoint(11.5, -3.2, 0.0),
+//         createPoint(12.4, -3.5, 0.0),
+//         createPoint(11.7, -1.2, 0.0),
+//         createPoint(12, 0.0, 0.0),
+//         createPoint(9.7, 0.7, 0.0),
+//         createPoint(0.0, 0.0, 0.0)
+
+
+        createPoint(-0.1, 0.2, 0.0),
+        //createPoint(9.5, 0.0, 0.0), //this does not work
         createPoint(12, 1.0, 0.0),
+        //might need a waypoint to see tag 6 here
         createPoint(12.0, -1.0, 0.0),
         createPoint(9.5, -4.0, 0.0),
         createPoint(8.5, -1.5, 0.0),
         createPoint(12.5, -3.0, 0.0),
-        createPoint(13.5, -1.5, 0.0),
+        //createPoint(13.5, -1.5, 0.0), //this does not work
         createPoint(0.0, 0.0, 0.0),
+        
 };
 
 class FindTags
@@ -66,16 +78,16 @@ protected:
     ir2425_group_08::FindTagsResult result_;
     ros::Subscriber sub_;
     tf::TransformListener tf_listener_;
-    sensor_msgs::LaserScan::ConstPtr latest_laser_msg_;
 
-    std::vector <apriltag_ros::AprilTagDetection> foundTags;
+    actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient_;
 
     std::vector<int> Ids;
     std::vector<int> AlreadyFoundIds;
+    std::vector <geometry_msgs::PoseStamped> AlreadyFoundTags;
 
-    ros::NodeHandle nh_;
+   sensor_msgs::LaserScan::ConstPtr latest_laser_msg_;
+ros::NodeHandle nh_;
     ros::Publisher cmd_vel_pub_;
-
 
     bool isNewAndValidTag(apriltag_ros::AprilTagDetection tag)
     {
@@ -90,119 +102,117 @@ protected:
     }
 
 public:
-    FindTags(ros::NodeHandle &nh,  std::string server_name) : as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
+    FindTags(ros::NodeHandle &nh,  std::string server_name)
+        :
+        moveClient_("move_base", true),
+        as_(nh, server_name, boost::bind(&FindTags::mainCycle, this, _1), false)
     {
-        this->cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mobile_base_controller/cmd_vel", 10);
-        
         this->as_.start();
 
         this->sub_ = nh.subscribe("tag_detections", 1, &FindTags::tagsCallback, this);
         ROS_INFO("Server and tag_detections subscriber started");
+
+        ROS_INFO("Waiting for move_base...");
+        moveClient_.waitForServer();
+        ROS_INFO("move_base server ready");
     }
 
     void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
     {
         for (const auto &tag : msg->detections)
         {
-            if (tag.id.empty())
-                continue;
-
-            int tagId = tag.id[0];
-            if (this->isNewAndValidTag(tag))
+            if (!tag.id.empty())
             {
-                bool isPresent = false;
-                // Add the tag ID to AlreadyFoundIds only if not already present
-                for (int i =0; i< this->AlreadyFoundIds.size(); i++){
-                    if (AlreadyFoundIds[i]== tagId)
-                      isPresent = true;
-                      break;
-                }
-                if(!isPresent)
-                    this->AlreadyFoundIds.push_back(tagId);
-
-                // if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
-                // {
-                //     this->AlreadyFoundIds.push_back(tagId);
-                // }
-
-                // Check if this tag already exists in feedback_.current_detection
-                // bool alreadyExists = std::any_of(
-                //     this->feedback_.current_detection.begin(),
-                //     this->feedback_.alreacurrent_detectiondyFoundTags.end(),
-                //     [&](const apriltag_ros::AprilTagDetection &existingTag)
-                //     {
-                //         return existingTag.id[0] == tagId;
-                //     });
-
-                //LE STAMPE DEVONO ESSERE SISTEMATE
-                if (!isPresent)
+                int tagId = tag.id[0];
+                if (this->isNewAndValidTag(tag))
                 {
+                    bool isPresent = std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) != this->AlreadyFoundIds.end();
                     
-                    ROS_INFO("New valid tag detected: %d", tagId);
-                    ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
-                                                                         << ", y: " << tag.pose.pose.pose.position.y
-                                                                         << ", z: " << tag.pose.pose.pose.position.z);
+                    if(!isPresent)
+                        this->AlreadyFoundIds.push_back(tagId);
 
-                    // Transform the pose from camera frame to map frame
-                    geometry_msgs::PoseStamped pose_in_camera_frame;
-                    geometry_msgs::PoseStamped pose_in_map_frame;
+                    // if (std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) == this->AlreadyFoundIds.end())
+                    // {
+                    //     this->AlreadyFoundIds.push_back(tagId);
+                    // }
 
-                    pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
-                    pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
-                    pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
+                    // Check if this tag already exists in feedback_.current_detection
+                    // bool alreadyExists = std::any_of(
+                    //     this->feedback_.current_detection.begin(),
+                    //     this->feedback_.alreacurrent_detectiondyFoundTags.end(),
+                    //     [&](const apriltag_ros::AprilTagDetection &existingTag)
+                    //     {
+                    //         return existingTag.id[0] == tagId;
+                    //     });
 
-                    try
+                    //LE STAMPE DEVONO ESSERE SISTEMATE
+                    if (!isPresent)
                     {
-                        // Use the TF listener to transform the pose
-                        tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
-                                                      ros::Time(0), ros::Duration(1.0));
-                        tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
+                        
+                        ROS_INFO("New valid tag detected: %d", tagId);
+                        ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
+                                                                            << ", y: " << tag.pose.pose.pose.position.y
+                                                                            << ", z: " << tag.pose.pose.pose.position.z);
 
-                        // Print the transformed pose 
-                        ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
-                                                   << pose_in_map_frame.pose.position.x
-                                                   << ", y: " << pose_in_map_frame.pose.position.y
-                                                   << ", z: " << pose_in_map_frame.pose.position.z);
+                        // Transform the pose from camera frame to map frame
+                        geometry_msgs::PoseStamped pose_in_camera_frame;
+                        geometry_msgs::PoseStamped pose_in_map_frame;
 
-                        apriltag_ros::AprilTagDetection newTag;
+                        pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
+                        pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
+                        pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
 
-                        // Assign the transformed pose properly
-                        newTag.pose.pose.pose = pose_in_map_frame.pose; // Copy both position and orientation
+                        try
+                        {
+                            // Use the TF listener to transform the pose
+                            tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
+                                                        ros::Time(0), ros::Duration(1.0));
+                            tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
 
-                        // Set the header correctly (frame ID and timestamp)
-                        newTag.pose.header.frame_id = "map"; // Target frame
-                        newTag.pose.header.stamp = ros::Time(0);
-                        // Copy the tag ID
-                        newTag.id = tag.id;
+                            // Print the transformed pose 
+                            ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
+                                                    << pose_in_map_frame.pose.position.x
+                                                    << ", y: " << pose_in_map_frame.pose.position.y
+                                                    << ", z: " << pose_in_map_frame.pose.position.z);
 
-                        foundTags.push_back(newTag);
+                            pose_in_map_frame.header.stamp = ros::Time(0);
+                            pose_in_map_frame.header.frame_id = "map";
 
+                            this->AlreadyFoundTags.push_back(pose_in_map_frame);
 
-                        // Publish the feedback
-                        this->feedback_.current_detection = newTag;
-                        this->feedback_.progress_status = AlreadyFoundIds.size();
-                        this->as_.publishFeedback(this->feedback_);
-                    }
-                    catch (tf::TransformException &ex)
-                    {
-                        ROS_WARN("Failed to transform pose: %s", ex.what());
+                            // Publish the feedback
+                            this->feedback_.current_detection = pose_in_map_frame;
+                            this->feedback_.id = tagId;
+                            this->feedback_.progress_status = AlreadyFoundIds.size();
+                            if (this->moveClient_.getState() == actionlib::SimpleClientGoalState::ACTIVE)
+                            {
+                                this->feedback_.robot_status = "Moving";
+                            }
+                            else
+                            {
+                                this->feedback_.robot_status = "Unknown";
+                            }
+                            this->as_.publishFeedback(this->feedback_);
+                        }
+                        catch (tf::TransformException &ex)
+                        {
+                            ROS_WARN("Failed to transform pose: %s", ex.what());
+                        }
                     }
                 }
             }
-            // else
-            // {
-            //     ROS_INFO("Invalid or already detected tag: %d", tagId);
-            // }
         }
     }
 
-    bool isInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, double &corridor_width) {
+
+bool isInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, double &corridor_width) {
     int n_ranges = msg->ranges.size();
     if (n_ranges == 0) return false;
 
-    double left_dist = 0.0, right_dist = 0.0;
-    int left_count = 0, right_count = 0;
+    double left_dist = 0.0, right_dist = 0.0, forward_dist = 0.0;
+    int left_count = 0, right_count = 0, forward_count = 0;
 
+    // Compute distances for left, right, and forward directions
     for (int i = 0; i < n_ranges / 2; ++i) {
         if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min) {
             left_dist += msg->ranges[i];
@@ -216,15 +226,28 @@ public:
         }
     }
 
+    // Analyze forward distances (10% of ranges centered in the forward direction)
+    int forward_start = n_ranges * 0.45; // 45% of the range
+    int forward_end = n_ranges * 0.55;   // 55% of the range
+
+    for (int i = forward_start; i < forward_end; ++i) {
+        if (msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min) {
+            forward_dist += msg->ranges[i];
+            forward_count++;
+        }
+    }
+
     double avg_left_dist = (left_count > 0) ? left_dist / left_count : msg->range_max;
     double avg_right_dist = (right_count > 0) ? right_dist / right_count : msg->range_max;
+    double avg_forward_dist = (forward_count > 0) ? forward_dist / forward_count : msg->range_max;
 
     corridor_width = avg_left_dist + avg_right_dist;
 
-    bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.2;
-    bool narrow_width = corridor_width < 4.0;
-// 
-    return parallel_walls && narrow_width;
+    bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.2; // Walls roughly parallel
+    bool narrow_width = corridor_width < 4.0;                         // Sufficiently narrow
+    bool sufficient_length = avg_forward_dist > 0.5;                  // At least 0.5 meters ahead
+
+    return parallel_walls && narrow_width && sufficient_length;
 }
 
 
@@ -267,17 +290,25 @@ void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publis
              left_dist, right_dist, angular_z);
 }
 
-void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr &goal) {
-    // Initialize IDs
-    this->Ids.clear();
-    for (int id : goal->target_ids) {
-        if (std::find(this->Ids.begin(), this->Ids.end(), id) == this->Ids.end()) {
-            this->Ids.push_back(id);
+    void mainCycle(const ir2425_group_08::FindTagsGoalConstPtr &goal)
+    {
+        // Deduplicate the IDs in the goal
+        this->Ids.clear();
+        for (int id : goal->target_ids)
+        {
+            if (std::find(this->Ids.begin(), this->Ids.end(), id) == this->Ids.end())
+            {
+                this->Ids.push_back(id);
+            }
         }
-    }
 
-    int waypointIndex = 0;
-    actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
+        // preparing robot
+        this->lookDown();
+        this->extendTorso();
+
+        int waypointIndex = 0;
+
+        actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient("move_base", true);
 
     ROS_INFO("Waiting for move_base...");
     moveClient.waitForServer();
@@ -294,9 +325,10 @@ ros::Subscriber laser_sub = nh_.subscribe<sensor_msgs::LaserScan>(
         }
     });
 
-    // Navigate to waypoints
-    while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size()) {
-        double corridor_width = 0.0;
+
+        while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
+        {
+            double corridor_width = 0.0;
 
         if (latest_laser_msg_ && !isInCorridor(latest_laser_msg_, corridor_width)) {
 
@@ -312,81 +344,100 @@ ros::Subscriber laser_sub = nh_.subscribe<sensor_msgs::LaserScan>(
                      waypointGoal.target_pose.pose.position.x,
                      waypointGoal.target_pose.pose.position.y);
 
-            moveClient.sendGoal(waypointGoal);
+            this->moveClient_.sendGoal(waypointGoal);
 
-            if (moveClient.waitForResult(ros::Duration(10.0))) {
+            this->moveClient_.waitForResult();
+            ROS_INFO("Waypoint %d reached", waypointIndex);
+            waypointIndex++;
+
+            /*
+            if (this->moveClient_.waitForResult(ros::Duration(10.0)))
+            {
                 ROS_INFO("Waypoint %d reached", waypointIndex);
                 waypointIndex++;
-            } else {
+            }
+            else
+            {
                 ROS_WARN("Timeout reached for waypoint %d", waypointIndex);
             }
+            */
         }
+        }
+
+        if (waypointIndex >= WAYPOINT_LIST.size())
+        {
+            ROS_INFO("All waypoints visited");
+        }
+
+        ROS_INFO("Publishing result...");
+        this->result_.finished = (this->AlreadyFoundIds.size() == this->Ids.size());
+        if (this->AlreadyFoundIds.size() == this->Ids.size()){
+            this->result_.status_message = "All the apriltags have been found!"; 
+            this->result_.ids = this->AlreadyFoundIds;
+            this->result_.detected_tags = this->AlreadyFoundTags;
+        } else
+           this->result_.status_message = "Not all the apriltags have been found!";
+           
+        this->as_.setSucceeded(this->result_);
     }
 
-    ROS_INFO("Publishing result...");
-    this->result_.finished = (this->AlreadyFoundIds.size() == this->Ids.size());
-    if (this->AlreadyFoundIds.size() == this->Ids.size()) {
-        this->result_.status_message = "All the apriltags have been found!";
-        this->result_.detected_tags = foundTags;
-    } else {
-        this->result_.status_message = "Not all the apriltags have been found!";
+    void extendTorso()
+    {
+        actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> ac("torso_controller/follow_joint_trajectory", true);
+
+        ROS_INFO("Waiting for torso_controller...");
+        ac.waitForServer();
+
+        control_msgs::FollowJointTrajectoryGoal goal;
+        trajectory_msgs::JointTrajectoryPoint point;
+
+        goal.trajectory.joint_names.push_back("torso_lift_joint");
+        point.positions.push_back(0.35);            // Maximum height (adjust based on Tiago specs)
+        point.time_from_start = ros::Duration(2.0); // Time to reach the position
+
+        goal.trajectory.points.push_back(point);
+        goal.trajectory.header.stamp = ros::Time::now();
+
+        ROS_INFO("Sending goal to torso_controller...");
+        ac.sendGoal(goal);
+
+        this->feedback_.id = -1;
+        this->feedback_.robot_status = "Extending torso";
+        this->as_.publishFeedback(this->feedback_);
+
+        ac.waitForResult();
+        ROS_INFO("Torso fully extended");
     }
 
-    this->as_.setSucceeded(this->result_);
-}
+    void lookDown()
+    {
+        actionlib::SimpleActionClient<control_msgs::PointHeadAction> ac("head_controller/point_head_action", true);
 
+        ROS_INFO("Waiting for head_controller...");
+        ac.waitForServer();
 
+        control_msgs::PointHeadGoal goal;
+        goal.target.header.stamp = ros::Time(0);
+        goal.target.header.frame_id = "xtion_rgb_optical_frame";
+        goal.target.point.x = 0.0;
+        goal.target.point.y = tan(M_PI / 6); // inclination of 30 degrees
+        goal.target.point.z = 1.0;
+        goal.pointing_axis.z = 1.0;
+        goal.pointing_frame = "xtion_rgb_optical_frame";
+        goal.min_duration = ros::Duration(1.0);
+        goal.max_velocity = 0.6;
+
+        ROS_INFO("Sending goal to head_controller...");
+        ac.sendGoal(goal);
+
+        this->feedback_.id = -1;
+        this->feedback_.robot_status = "Pointing down camera";
+        this->as_.publishFeedback(this->feedback_);
+
+        ac.waitForResult();
+        ROS_INFO("Robot is looking down");
+    }
 };
-
-void extendTorso()
-{
-    actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> ac("torso_controller/follow_joint_trajectory", true);
-
-    ROS_INFO("Waiting for torso_controller...");
-    ac.waitForServer();
-
-    control_msgs::FollowJointTrajectoryGoal goal;
-    trajectory_msgs::JointTrajectoryPoint point;
-
-    goal.trajectory.joint_names.push_back("torso_lift_joint");
-    point.positions.push_back(0.35);            // Maximum height (adjust based on Tiago specs)
-    point.time_from_start = ros::Duration(2.0); // Time to reach the position
-
-    goal.trajectory.points.push_back(point);
-    goal.trajectory.header.stamp = ros::Time::now();
-
-    ROS_INFO("Sending goal to torso_controller...");
-    ac.sendGoal(goal);
-    ac.waitForResult();
-    ROS_INFO("Torso fully extended");
-}
-
-void lookDown(ros::NodeHandle &nh)
-{
-    actionlib::SimpleActionClient<control_msgs::PointHeadAction> ac("head_controller/point_head_action", true);
-
-    ROS_INFO("Waiting for head_controller...");
-    ac.waitForServer();
-
-    control_msgs::PointHeadGoal goal;
-    goal.target.header.stamp = ros::Time(0);
-    goal.target.header.frame_id = "xtion_rgb_optical_frame";
-    goal.target.point.x = 0.0;
-    goal.target.point.y = tan(M_PI / 6); // inclination of 30 degrees
-    goal.target.point.z = 1.0;
-    goal.pointing_axis.z = 1.0;
-    goal.pointing_frame = "xtion_rgb_optical_frame";
-    goal.min_duration = ros::Duration(1.0);
-    goal.max_velocity = 0.6;
-
-    ROS_INFO("Sending goal to head_controller...");
-    ac.sendGoal(goal);
-    ac.waitForResult();
-    ROS_INFO("Robot is looking down");
-}
-
-
-
 
 void cameraCallback(const sensor_msgs::ImageConstPtr &msg)
 {
@@ -400,15 +451,18 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     tf::TransformListener tf_listener; //not used here
 
-    // // Debug section for camera
-    // cv::namedWindow("camera");
-    // ros::Subscriber sub = nh.subscribe("xtion/rgb/image_raw", 1, cameraCallback);
+    // Debug section for camera
+    cv::namedWindow("camera");
+    ros::Subscriber sub = nh.subscribe("xtion/rgb/image_raw", 1, cameraCallback);
 
+    /*
     lookDown(nh);
     extendTorso();
+    */
 
     FindTags findTags(nh, "find_tags");
 
    ros::spin(); //why it's not finishig at the end? could be the camera
     return 0;
 }
+
