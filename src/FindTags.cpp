@@ -25,6 +25,9 @@ namespace ir2425_group_08
     {
         this->as_.start();
 
+        // Initialize the /cmd_vel publisher
+        this->cmd_vel_pub = nh_ptr->advertise<geometry_msgs::Twist>("/cmd_vel", 10);
+
         this->sub_ = nh_ptr->subscribe("tag_detections", 1, &FindTags::tagsCallback, this);
         ROS_INFO("Server and tag_detections subscriber started");
 
@@ -124,6 +127,8 @@ namespace ir2425_group_08
         this->lookDown();
         this->extendTorso();
 
+        this->performFullSpin();
+
         int waypointIndex = 0;
 
         while (this->AlreadyFoundIds.size() < this->Ids.size() && waypointIndex < WAYPOINT_LIST.size())
@@ -221,4 +226,27 @@ namespace ir2425_group_08
         ac.waitForResult();
         ROS_INFO("Robot is looking down");
     }
+
+    void FindTags::performFullSpin() {
+    geometry_msgs::Twist twist;
+    double angular_velocity = 1.0; // rad/s
+    twist.linear.x = 0.0;          // No linear movement
+    twist.angular.z = angular_velocity; // Rotate counterclockwise
+
+    double spin_duration = 2 * M_PI / angular_velocity; // Time for a full rotation
+
+    ros::Rate rate(10);           // 10 Hz loop rate
+    ros::Time start_time = ros::Time::now();
+
+    ROS_INFO("Starting full spin...");
+    while ((ros::Time::now() - start_time).toSec() < spin_duration) {
+        this->cmd_vel_pub.publish(twist); // Publish twist message
+        rate.sleep();
+    }
+
+    // Stop the robot after the spin
+    twist.angular.z = 0.0;
+    this->cmd_vel_pub.publish(twist);
+    ROS_INFO("Spin complete!");
+}
 }

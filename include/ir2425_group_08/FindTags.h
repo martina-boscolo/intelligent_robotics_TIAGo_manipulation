@@ -18,6 +18,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Twist.h>
 #include <tf/transform_listener.h>
 
 #include <string>
@@ -41,14 +42,11 @@ geometry_msgs::Point createPoint(double x, double y, double z)
 std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
         createPoint(-0.1, 0.2, 0.0),
-        //createPoint(9.5, 0.0, 0.0), //this does not work
         createPoint(12, 1.0, 0.0),
-        //might need a waypoint to see tag 6 here
         createPoint(12.0, -1.0, 0.0),
         createPoint(9.5, -4.0, 0.0),
         createPoint(8.5, -1.5, 0.0),
         createPoint(12.5, -3.0, 0.0),
-        //createPoint(13.5, -1.5, 0.0), //this does not work
         createPoint(0.0, 0.0, 0.0),
         
 };
@@ -59,6 +57,7 @@ namespace ir2425_group_08
     {
     protected:
         actionlib::SimpleActionServer<ir2425_group_08::FindTagsAction> as_;
+        ros::Publisher cmd_vel_pub;
         ir2425_group_08::FindTagsFeedback feedback_;
         ir2425_group_08::FindTagsResult result_;
         ros::Subscriber sub_;
@@ -82,6 +81,8 @@ namespace ir2425_group_08
         void extendTorso();
 
         void lookDown();
+
+        void performFullSpin();
     };
 }
 
