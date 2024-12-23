@@ -105,7 +105,7 @@ namespace ir2425_group_08
 
         bool isInCorridor(const sensor_msgs::LaserScanConstPtr& msg, double& corridor_width);
 
-        void navigateInCorridor(const sensor_msgs::LaserScanConstPtr& msg);
+        void navigateInCorridor(const sensor_msgs::LaserScan::ConstPtr &msg, ros::Publisher &cmd_vel_pub_);
     };
 }
 
