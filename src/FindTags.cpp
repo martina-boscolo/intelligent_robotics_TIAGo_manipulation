@@ -47,69 +47,61 @@ namespace ir2425_group_08
                 int tagId = tag.id[0];
                 if (this->isNewAndValidTag(tag))
                 {
-                    bool isPresent = std::find(this->AlreadyFoundIds.begin(), this->AlreadyFoundIds.end(), tagId) != this->AlreadyFoundIds.end();
+                    this->AlreadyFoundIds.push_back(tagId);
                     
-                    if(!isPresent)
-                        this->AlreadyFoundIds.push_back(tagId);
+                    ROS_INFO("New valid tag detected: %d", tagId);
+                    ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
+                                                                        << ", y: " << tag.pose.pose.pose.position.y
+                                                                        << ", z: " << tag.pose.pose.pose.position.z);
 
-                    //LE STAMPE DEVONO ESSERE SISTEMATE
-                    if (!isPresent)
+                    // Transform the pose from camera frame to map frame
+                    geometry_msgs::PoseStamped pose_in_camera_frame;
+                    geometry_msgs::PoseStamped pose_in_map_frame;
+
+                    pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
+                    pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
+                    pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
+
+                    try
                     {
-                        
-                        ROS_INFO("New valid tag detected: %d", tagId);
-                        ROS_INFO_STREAM("Position (respect to camera) - x: " << tag.pose.pose.pose.position.x
-                                                                            << ", y: " << tag.pose.pose.pose.position.y
-                                                                            << ", z: " << tag.pose.pose.pose.position.z);
+                        // Use the TF listener to transform the pose
+                        tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
+                                                    ros::Time(0), ros::Duration(1.0));
+                        tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
 
-                        // Transform the pose from camera frame to map frame
-                        geometry_msgs::PoseStamped pose_in_camera_frame;
-                        geometry_msgs::PoseStamped pose_in_map_frame;
+                        // Print the transformed pose 
+                        ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
+                                                << pose_in_map_frame.pose.position.x
+                                                << ", y: " << pose_in_map_frame.pose.position.y
+                                                << ", z: " << pose_in_map_frame.pose.position.z);
 
-                        pose_in_camera_frame.header.frame_id = tag.pose.header.frame_id;
-                        pose_in_camera_frame.header.stamp = ros::Time(0);  // Copy the frame_id and timestamp
-                        pose_in_camera_frame.pose = tag.pose.pose.pose; // Copy the pose
+                        pose_in_map_frame.header.stamp = ros::Time(0);
+                        pose_in_map_frame.header.frame_id = "map";
 
-                        try
+                        this->AlreadyFoundTags.push_back(pose_in_map_frame);
+
+                        // Publish the feedback
+                        this->feedback_.current_detection = pose_in_map_frame;
+                        this->feedback_.id = tagId;
+                        this->feedback_.progress_status = AlreadyFoundIds.size();
+                        if (this->moveClient_.getState() == actionlib::SimpleClientGoalState::ACTIVE)
                         {
-                            // Use the TF listener to transform the pose
-                            tf_listener_.waitForTransform("map", pose_in_camera_frame.header.frame_id,
-                                                        ros::Time(0), ros::Duration(1.0));
-                            tf_listener_.transformPose("map", pose_in_camera_frame, pose_in_map_frame);
-
-                            // Print the transformed pose 
-                            ROS_INFO_STREAM("Tag ID: " << tagId << " Position (map frame) - x: "
-                                                    << pose_in_map_frame.pose.position.x
-                                                    << ", y: " << pose_in_map_frame.pose.position.y
-                                                    << ", z: " << pose_in_map_frame.pose.position.z);
-
-                            pose_in_map_frame.header.stamp = ros::Time(0);
-                            pose_in_map_frame.header.frame_id = "map";
-
-                            this->AlreadyFoundTags.push_back(pose_in_map_frame);
-
-                            // Publish the feedback
-                            this->feedback_.current_detection = pose_in_map_frame;
-                            this->feedback_.id = tagId;
-                            this->feedback_.progress_status = AlreadyFoundIds.size();
-                            if (this->moveClient_.getState() == actionlib::SimpleClientGoalState::ACTIVE)
-                            {
-                                this->feedback_.robot_status = "Moving";
-                            }
-                            else
-                            {
-                                this->feedback_.robot_status = "Unknown";
-                            }
-                            this->as_.publishFeedback(this->feedback_);
+                            this->feedback_.robot_status = "Moving";
                         }
-                        catch (tf::TransformException &ex)
+                        else
                         {
-                            ROS_WARN("Failed to transform pose: %s", ex.what());
+                            this->feedback_.robot_status = "Unknown";
                         }
+                        this->as_.publishFeedback(this->feedback_);
+                    }
+                    catch (tf::TransformException &ex)
+                    {
+                        ROS_WARN("Failed to transform pose: %s", ex.what());
                     }
                 }
                 else
                 {
-                    ROS_INFO("Tag detected: %d", tagId);
+                    ROS_INFO("Tag detected: %d", tagId); //this prints every id, we should remove the first waypoint and make tiago look down more, then make it look at 30° again after spin
                 }
             }
         }
