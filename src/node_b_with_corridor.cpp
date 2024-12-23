@@ -31,7 +31,7 @@
 #include <geometry_msgs/Twist.h>
 // Parameters for controlling the robot
 const double MIN_DISTANCE = 0.2; // Minimum allowable distance from walls (meters)
-const double MAX_SPEED = 1.0;   // Maximum linear speed (m/s)
+const double MAX_SPEED = 0.3;   // Maximum linear speed (m/s)
 const double TURN_GAIN = 1.0;   // Gain for angular velocity adjustment
 
 ros::Publisher cmd_vel_pub;
@@ -221,7 +221,7 @@ public:
 
     corridor_width = avg_left_dist + avg_right_dist;
 
-    bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.5;
+    bool parallel_walls = fabs(avg_left_dist - avg_right_dist) < 0.2;
     bool narrow_width = corridor_width < 4.0;
 // 
     return parallel_walls && narrow_width;
