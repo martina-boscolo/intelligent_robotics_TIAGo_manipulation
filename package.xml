@@ -2,7 +2,7 @@
 <package format="2">
   <name>ir2425_group_08</name>
   <version>0.0.0</version>
-  <description>The ir2425_group_08 package</description>
+  <description>The test_ass_2 package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/ir2425_group_08</url> -->
+  <!-- <url type="website">http://wiki.ros.org/test_ass_2</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -34,14 +34,14 @@
   <!-- Use depend as a shortcut for packages that are both build and exec dependencies -->
   <!--   <depend>roscpp</depend> -->
   <!--   Note that this is equivalent to the following: -->
-  <!-- <build_depend>roscpp</build_depend> -->
+  <!--   <build_depend>roscpp</build_depend> -->
   <!--   <exec_depend>roscpp</exec_depend> -->
   <!-- Use build_depend for packages you need at compile time: -->
   <!--   <build_depend>message_generation</build_depend> -->
   <!-- Use build_export_depend for packages you need in order to build against this package: -->
   <!--   <build_export_depend>message_generation</build_export_depend> -->
   <!-- Use buildtool_depend for build tool packages: -->
-  <!-- <buildtool_depend>catkin</buildtool_depend> -->
+  <!--   <buildtool_depend>catkin</buildtool_depend> -->
   <!-- Use exec_depend for packages you need at runtime: -->
   <!--   <exec_depend>message_runtime</exec_depend> -->
   <!-- Use test_depend for packages you need only for testing: -->
@@ -57,16 +57,22 @@
   <build_export_depend>std_msgs</build_export_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>std_msgs</exec_depend>
-  <build_depend>message_generation</build_depend>
-  <exec_depend>message_runtime</exec_depend>
   <build_depend>actionlib</build_depend>
   <exec_depend>actionlib</exec_depend>
   <build_depend>actionlib_msgs</build_depend>
   <exec_depend>actionlib_msgs</exec_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <exec_depend>geometry_msgs</exec_depend>
 
    <build_depend>tiago_iaslab_simulation</build_depend>
     <exec_depend>tiago_iaslab_simulation</exec_depend>
 
+  <build_depend>moveit_core</build_depend>
+  <build_depend>moveit_ros_planning</build_depend>
+  <build_depend>moveit_ros_planning_interface</build_depend>
+  <exec_depend>moveit_core</exec_depend>
+  <exec_depend>moveit_ros_planning</exec_depend>
+  <exec_depend>moveit_ros_planning_interface</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
