@@ -1,0 +1,15 @@
+<launch>
+  <!-- Start the simulation -->
+  <include file="$(find tiago_iaslab_simulation)/launch/start_simulation.launch">
+    <arg name="world_name" value="iaslab_assignment2"/>
+  </include>
+
+  <!-- Launch the navigation stack -->
+  <include file="$(find tiago_iaslab_simulation)/launch/navigation.launch"/>
+
+  <!-- Launch the AprilTag detection -->
+  <include file="$(find tiago_iaslab_simulation)/launch/apriltag2.launch"/>
+
+  <!-- Start the AprilTags IDs server node -->
+  <node pkg="tiago_iaslab_simulation" type="get_straightline_node" name="get_straightline" output="screen"/>
+</launch>
