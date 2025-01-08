@@ -4,7 +4,7 @@
 #include "ir2425_group_08/PlaceGoal.h"
 #include "ir2425_group_08/RouteHandler.h"
 
-std::string NODE_A_TOPIC = "/";
+std::string NODE_A_TOPIC = "/place_goal";
 
 int main(int argc, char** argv)
 {

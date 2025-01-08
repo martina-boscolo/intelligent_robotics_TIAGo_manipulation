@@ -148,6 +148,7 @@ add_library(${PROJECT_NAME}_route_handler
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/ir2425_group_08_node.cpp)
 add_executable(node_b src/node_b.cpp)
+add_executable(node_a src/node_a.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -165,6 +166,7 @@ add_dependencies(node_b ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(node_b ${catkin_LIBRARIES} ${PROJECT_NAME}_route_handler)
+target_link_libraries(node_a ${catkin_LIBRARIES})
 
 #############
 ## Install ##

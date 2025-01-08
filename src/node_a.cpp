@@ -13,6 +13,8 @@
 #include <math.h>
 #include <vector>
 
+#include "ir2425_group_08/PlaceGoal.h"
+
 //Decent waypoints to scan tag with ID=10
 //Position(8,234, 0,505, 0,000), Orientation(0,000, 0,000, -0,374, 0,927)
 //Position(9,191, -2,266, 0,000), Orientation(0,000, 0,000, -0,999, 0,037)
@@ -140,6 +142,16 @@ void tagDetectionCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr &
 
                 // Debug points
                 publishDebugPoints(global_points, nh);
+
+                // send message, provvisiorio, perché fa schifo
+                ros::Publisher pub = nh.advertise<ir2425_group_08::PlaceGoal>("/place_goal", 1);
+
+                ir2425_group_08::PlaceGoal msg;
+                msg.target_points = global_points;
+                msg.num_goals = n;
+
+                ROS_INFO("Publishing message");
+                pub.publish(msg);
 
             }
             catch (tf::TransformException &ex)
@@ -273,7 +285,6 @@ int main(int argc, char **argv)
         [&nh, m, q, n](const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg) {
             tagDetectionCallback(msg, m, q, n, nh);
         });
-
 
     ros::spin();
     return 0;
