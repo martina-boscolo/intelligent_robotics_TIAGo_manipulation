@@ -16,10 +16,10 @@
 //Decent waypoints to scan tag with ID=10
 //Position(8,234, 0,505, 0,000), Orientation(0,000, 0,000, -0,374, 0,927)
 //Position(9,191, -2,266, 0,000), Orientation(0,000, 0,000, -0,999, 0,037)
-std::vector<geometry_msgs::Point> WAYPOINT_LIST =
+/*std::vector<geometry_msgs::Point> WAYPOINT_LIST =
     {
         createPoint(12, 1.0, 0.0),
-    };
+    };*/
 
 std::vector<geometry_msgs::Point> global_points;
 ros::Publisher debug_marker_pub;
