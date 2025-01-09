@@ -294,14 +294,18 @@ int main(int argc, char **argv)
     // Debug points
     publishDebugPoints(global_points, nh);
 
-    ir2425_group_08::PlaceGoal msg;
+    ir2425_group_08::PlaceGoal srv_place_goal;
 
-    msg.target_points = global_points;
-    msg.num_goals = n;
-
-    ros::Publisher pub = nh.advertise<ir2425_group_08::PlaceGoal>("/place_goal", 1);
+    ros::ServiceClient client_place_goal = nh.serviceClient<ir2425_group_08::PlaceGoal>("/place_goal", true);
+    ros::service::waitForService("/place_goal");
+    srv_place_goal.request.target_points = global_points;
+    srv_place_goal.request.num_goals = n;
     
-    pub.publish(msg);
+    if (!client_place_goal.call(srv_place_goal))
+    {
+        ROS_ERROR("Failed to call /place_goal service.");
+        return 1;
+    }
 
     ros::spin();
     return 0;

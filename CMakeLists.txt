@@ -54,15 +54,16 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  PlaceGoal.msg
-)
+#add_message_files(
+#  FILES
+#  PlaceGoal.msg
+#)
 
 ## Generate services in the 'srv' folder
-#add_service_files(
-#  FILES
-#)
+add_service_files(
+  FILES
+  PlaceGoal.srv
+)
 
 ## Generate actions in the 'action' folder
 #add_action_files(
@@ -166,7 +167,7 @@ add_dependencies(node_b ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(node_b ${catkin_LIBRARIES} ${PROJECT_NAME}_route_handler)
-target_link_libraries(node_a ${catkin_LIBRARIES})
+target_link_libraries(node_a ${catkin_LIBRARIES} ${PROJECT_NAME}_route_handler)
 
 #############
 ## Install ##
