@@ -124,37 +124,6 @@ void generatePointsInAprilTagFrame(float m, float q, int n, ros::NodeHandle &nh)
     }
 }
 
-// Main callback to handle tag detection and point generation
-void tagDetectionCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg, float m, float q, int n, ros::NodeHandle &nh)
-{
-    if (!is_apriltag_10_processed)
-    {
-        for (const auto &detection : msg->detections)
-        {
-            if (detection.id[0] == 10) // Only process AprilTag with ID 10
-            {
-                ROS_INFO("Tag 10 detected!");
-
-                // Extract the AprilTag's pose in the camera frame
-                geometry_msgs::PoseStamped tag_pose_camera;
-                tag_pose_camera.header = detection.pose.header;
-                tag_pose_camera.pose = detection.pose.pose.pose;
-
-                // Generate and transform points
-                generatePointsInAprilTagFrame(m, q, n, nh);
-
-                // Debug points
-                publishDebugPoints(global_points, nh);
-
-                // Set the flag to true after processing
-                is_apriltag_10_processed = true;
-                ROS_INFO("AprilTag 10 processing complete. Will not process it again.");
-            }
-        }
-    }
-}
-
-
 void extendTorso()
 {
     // Define an action client for the torso controller
@@ -319,8 +288,20 @@ int main(int argc, char **argv)
     moveToPoses(target_poses);
 
     int n = 3;
-    ros::Subscriber sub = nh.subscribe<apriltag_ros::AprilTagDetectionArray>(
-        "/tag_detections", 10, boost::bind(tagDetectionCallback, _1, m, q, n, nh));
+    // Generate and transform points
+    generatePointsInAprilTagFrame(m, q, n, nh);
+
+    // Debug points
+    publishDebugPoints(global_points, nh);
+
+    ir2425_group_08::PlaceGoal msg;
+
+    msg.target_points = global_points;
+    msg.num_goals = n;
+
+    ros::Publisher pub = nh.advertise<ir2425_group_08::PlaceGoal>("/place_goal", 1);
+    
+    pub.publish(msg);
 
     ros::spin();
     return 0;
