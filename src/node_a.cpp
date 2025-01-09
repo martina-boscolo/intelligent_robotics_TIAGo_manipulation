@@ -16,7 +16,7 @@
 #include <math.h>
 #include <vector>
 
-#include "ir2425_group_08/PlaceGoal.h"
+#include "ir2425_group_08/PlaceService.h"
 
 //Decent waypoints to scan tag with ID=10
 std::vector<geometry_msgs::Pose> target_poses = {
@@ -294,9 +294,9 @@ int main(int argc, char **argv)
     // Debug points
     publishDebugPoints(global_points, nh);
 
-    ir2425_group_08::PlaceGoal srv_place_goal;
+    ir2425_group_08::PlaceService srv_place_goal;
 
-    ros::ServiceClient client_place_goal = nh.serviceClient<ir2425_group_08::PlaceGoal>("/place_goal", true);
+    ros::ServiceClient client_place_goal = nh.serviceClient<ir2425_group_08::PlaceService>("/place_goal", true);
     ros::service::waitForService("/place_goal");
     srv_place_goal.request.target_points = global_points;
     srv_place_goal.request.num_goals = n;

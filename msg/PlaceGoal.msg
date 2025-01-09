@@ -1,5 +1,0 @@
-# coordinates in the map frame of where to place the objects
-geometry_msgs/Point[] target_points
-
-# length of target_points
-int32 num_goals

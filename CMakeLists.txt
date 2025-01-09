@@ -62,19 +62,19 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  PlaceGoal.srv
+  PlaceService.srv
 )
 
 ## Generate actions in the 'action' folder
-#add_action_files(
-#  DIRECTORY action
-#  FILES FindTags.action
-#)
+add_action_files(
+  DIRECTORY action
+  FILES PickAndPlace.action
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
-#  actionlib_msgs
+  actionlib_msgs
   std_msgs
   geometry_msgs
 #  apriltag_ros
@@ -113,10 +113,11 @@ catkin_package(
    INCLUDE_DIRS include
 #  LIBRARIES ir2425_group_08
    CATKIN_DEPENDS 
+   message_runtime
    std_msgs
    geometry_msgs
-   message_runtime
    actionlib
+   actionlib_msgs
    moveit_core
    moveit_ros_planning
    moveit_ros_planning_interface
@@ -148,8 +149,9 @@ add_library(${PROJECT_NAME}_route_handler
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/ir2425_group_08_node.cpp)
-add_executable(node_b src/node_b.cpp)
 add_executable(node_a src/node_a.cpp)
+add_executable(node_b src/node_b.cpp)
+add_executable(node_c src/node_c.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -166,8 +168,9 @@ add_dependencies(node_b ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(node_b ${catkin_LIBRARIES} ${PROJECT_NAME}_route_handler)
 target_link_libraries(node_a ${catkin_LIBRARIES} ${PROJECT_NAME}_route_handler)
+target_link_libraries(node_b ${catkin_LIBRARIES} ${PROJECT_NAME}_route_handler)
+target_link_libraries(node_c ${catkin_LIBRARIES} ${PROJECT_NAME}_route_handler)
 
 #############
 ## Install ##
