@@ -79,46 +79,24 @@ void publishDebugPoints(const std::vector<geometry_msgs::Point> &points, ros::No
 }
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-// Function to publish the AprilTag frame to the TF tree
-void publishAprilTagFrame(const geometry_msgs::PoseStamped &tag_pose_camera)
-{
-    static tf::TransformBroadcaster tf_broadcaster;
-
-    // Publish the transform from the camera frame to the AprilTag frame
-    geometry_msgs::TransformStamped transform;
-    transform.header.stamp = ros::Time::now();
-    transform.header.frame_id = tag_pose_camera.header.frame_id; // Camera frame
-    transform.child_frame_id = "apriltag_frame";                 // New AprilTag frame
-    transform.transform.translation.x = tag_pose_camera.pose.position.x;
-    transform.transform.translation.y = tag_pose_camera.pose.position.y;
-    transform.transform.translation.z = tag_pose_camera.pose.position.z;
-    transform.transform.rotation = tag_pose_camera.pose.orientation;
-
-    tf_broadcaster.sendTransform(transform);
-
-    ROS_INFO("Published transform from %s to %s",
-             tag_pose_camera.header.frame_id.c_str(),
-             "apriltag_frame");
-}
-
 // Function to generate points in the AprilTag frame
 void generatePointsInAprilTagFrame(float m, float q, int n, ros::NodeHandle &nh)
 {
-    static tf::TransformListener tf_listener;
+    tf::TransformListener tf_listener;
 
     try
     {
         // Wait for the transform from the AprilTag frame to the map frame
-        tf_listener.waitForTransform("map", "apriltag_frame", ros::Time(0), ros::Duration(2.0));
+        tf_listener.waitForTransform("map", "tag_10", ros::Time(0), ros::Duration(2.0));
 
         // Generate points in the AprilTag frame
         std::vector<geometry_msgs::PointStamped> apriltag_points;
-        double step = 0.2; // Step size for points along the line
+        double step = 0.15; // Step size for points along the line
         for (int i = 0; i < n; ++i)
         {
             geometry_msgs::PointStamped point_apriltag;
-            point_apriltag.header.frame_id = "apriltag_frame";
-            point_apriltag.header.stamp = ros::Time::now();
+            point_apriltag.header.frame_id = "tag_10";
+            point_apriltag.header.stamp = ros::Time(0);
 
             point_apriltag.point.x = i * step;        // Increment x
             point_apriltag.point.y = m * (point_apriltag.point.x) + q; // y = mx + q
@@ -149,37 +127,29 @@ void generatePointsInAprilTagFrame(float m, float q, int n, ros::NodeHandle &nh)
 // Main callback to handle tag detection and point generation
 void tagDetectionCallback(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg, float m, float q, int n, ros::NodeHandle &nh)
 {
-    if (is_apriltag_10_processed)
+    if (!is_apriltag_10_processed)
     {
-        ROS_INFO("AprilTag 10 has already been processed. Ignoring further detections.");
-        return;
-    }
-
-    for (const auto &detection : msg->detections)
-    {
-        if (detection.id[0] == 10) // Only process AprilTag with ID 10
+        for (const auto &detection : msg->detections)
         {
-            ROS_INFO("Tag 10 detected!");
+            if (detection.id[0] == 10) // Only process AprilTag with ID 10
+            {
+                ROS_INFO("Tag 10 detected!");
 
-            // Extract the AprilTag's pose in the camera frame
-            geometry_msgs::PoseStamped tag_pose_camera;
-            tag_pose_camera.header = detection.pose.header;
-            tag_pose_camera.pose = detection.pose.pose.pose;
+                // Extract the AprilTag's pose in the camera frame
+                geometry_msgs::PoseStamped tag_pose_camera;
+                tag_pose_camera.header = detection.pose.header;
+                tag_pose_camera.pose = detection.pose.pose.pose;
 
-            // Publish the AprilTag frame
-            publishAprilTagFrame(tag_pose_camera);
+                // Generate and transform points
+                generatePointsInAprilTagFrame(m, q, n, nh);
 
-            // Generate and transform points
-            generatePointsInAprilTagFrame(m, q, n, nh);
+                // Debug points
+                publishDebugPoints(global_points, nh);
 
-            // Debug points
-            publishDebugPoints(global_points, nh);
-
-            // Set the flag to true after processing
-            is_apriltag_10_processed = true;
-            ROS_INFO("AprilTag 10 processing complete. Will not process it again.");
-
-            return; // Exit after processing the first valid tag
+                // Set the flag to true after processing
+                is_apriltag_10_processed = true;
+                ROS_INFO("AprilTag 10 processing complete. Will not process it again.");
+            }
         }
     }
 }
