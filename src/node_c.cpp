@@ -4,45 +4,41 @@
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/String.h>
-
+#include <tf/transform_datatypes.h>
 #include "ir2425_group_08/PickAndPlaceAction.h"
 
 const float tiago_start_x = -6.580157;
 const float tiago_start_y = 1.369999;
 
-//TODO
-// class Manipulation
-// {
-// };
+// TODO
+//  class Manipulation
+//  {
+//  };
+
+actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> *as_ptr;
 
 
 
-
-actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction>* as_ptr;
-
-void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr& goal)
+void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
-
     ROS_INFO_STREAM("Got tag " << goal->id << " with pose " << goal->goal_pose);
+
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-    
-    // Add the obj to the collision environment
+    moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
+    moveit::planning_interface::MoveGroupInterface gripper_group("gripper");
+    move_group.setPlanningTime(10.0);
+    gripper_group.setPlanningTime(10.0);
+
+    // Add the object to the collision environment
     moveit_msgs::CollisionObject obj;
     obj.id = "obj";
-    obj.header.frame_id = "map";
-    // float x = 1.567857 - tiago_start_x;
-    // float y = -1.354958 - tiago_start_y;
-    ROS_INFO_STREAM("PROVAAAAAAAAA x " << 1.567857 - tiago_start_x << " y " << -1.354958 - tiago_start_y);
-
+    obj.header.frame_id = "base_link";
 
     geometry_msgs::Pose obj_pose;
     obj_pose.position.x = goal->goal_pose.position.x;
     obj_pose.position.y = goal->goal_pose.position.y;
     obj_pose.position.z = goal->goal_pose.position.z;
-    obj_pose.orientation.x = goal->goal_pose.orientation.x;
-    obj_pose.orientation.y = goal->goal_pose.orientation.y;
-    obj_pose.orientation.z = goal->goal_pose.orientation.z;
-    obj_pose.orientation.w = goal->goal_pose.orientation.w;
+    obj_pose.orientation = goal->goal_pose.orientation;
 
     shape_msgs::SolidPrimitive obj_shape;
     obj_shape.type = obj_shape.BOX;
@@ -52,36 +48,42 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr& goal)
     obj.primitive_poses.push_back(obj_pose);
     obj.operation = obj.ADD;
 
-    planning_scene_interface.applyCollisionObjects({obj });
-    // moveit_msgs::CollisionObject obj;
-    // obj.id = "obj";
-    // obj.header.frame_id = "tag_5";
+    planning_scene_interface.applyCollisionObjects({obj});
 
-    // geometry_msgs::Pose obj_pose;
-    // obj_pose.position.x = 0;
-    // obj_pose.position.y = 0;
-    // obj_pose.position.z = 0;
-    // obj_pose.orientation.x = 0;
-    // obj_pose.orientation.y = 0;
-    // obj_pose.orientation.z = 0;
-    // obj_pose.orientation.w = 1;
+    // Plan to pre-grasp pose
+    geometry_msgs::Pose pre_grasp_pose = obj_pose;
+    pre_grasp_pose.position.z += 0.4; // Offset above the object
 
-    // shape_msgs::SolidPrimitive obj_shape;
-    // obj_shape.type = obj_shape.BOX;
-    // obj_shape.dimensions = {0.05, 0.05, 0.05};
+    // Adjust the orientation to make the gripper point downward
+    // tf::Quaternion orientation;
+    // orientation.setRPY(M_PI, 0, 0); // Roll = 180°, Pitch = 0°, Yaw = 0°
+    // pre_grasp_pose.orientation.x = orientation.x();
+    // pre_grasp_pose.orientation.y = orientation.y();
+    // pre_grasp_pose.orientation.z = orientation.z();
+    // pre_grasp_pose.orientation.w = orientation.w();
 
-    // obj.primitives.push_back(obj_shape);
-    // obj.primitive_poses.push_back(obj_pose);
-    // obj.operation = obj.ADD;
+  
+    move_group.setPoseTarget(pre_grasp_pose);
+    moveit::planning_interface::MoveGroupInterface::Plan pre_grasp_plan;
+    if (move_group.plan(pre_grasp_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS)
+    {
+        ROS_INFO("Planning to pre-grasp pose successful. Executing...");
+        move_group.execute(pre_grasp_plan);
+    }
+    else
+    {
+        ROS_ERROR("Planning to pre-grasp pose failed.");
+        return;
+    }
+  
 
-    // planning_scene_interface.applyCollisionObjects({obj });
-    
+    // Indicate success
     ir2425_group_08::PickAndPlaceResult result;
     result.success = true;
     as_ptr->setSucceeded(result);
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     ros::init(argc, argv, "node_c");
     ros::NodeHandle nh;
@@ -90,7 +92,7 @@ int main(int argc, char** argv)
     moveit::planning_interface::MoveGroupInterface arm_group("arm_torso");
     moveit::planning_interface::MoveGroupInterface gripper_group("gripper");
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-  
+
     arm_group.setPlanningTime(10.0);
     gripper_group.setPlanningTime(10.0);
 
@@ -132,18 +134,15 @@ int main(int argc, char** argv)
     place_table.primitive_poses.push_back(place_table_pose);
     place_table.operation = place_table.ADD;
 
-    planning_scene_interface.applyCollisionObjects({pick_table , place_table});
+    planning_scene_interface.applyCollisionObjects({pick_table, place_table});
 
     actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> as(nh, "/pick_and_place", pickAndPlaceCallback, false);
     as_ptr = &as;
     as.start();
     ROS_INFO("Server started!");
 
-
-
-//to remove objects
-    //planning_scene_interface.removeCollisionObjects({pick_table , place_table});
-
+    // to remove objects
+    // planning_scene_interface.removeCollisionObjects({pick_table , place_table});
 
     ros::spin();
 
