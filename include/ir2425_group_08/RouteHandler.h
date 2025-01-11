@@ -26,6 +26,7 @@ namespace ir2425_group_08
         geometry_msgs::Point transformPoint(const geometry_msgs::Point& point_in, const std::string& source_frame, const std::string& target_frame);
     public:
         RouteHandler();
+        bool followPoses(std::vector<geometry_msgs::Pose> poses);
         bool followWaypoints(std::vector<geometry_msgs::Point> waypoints);
         bool pointTowards(geometry_msgs::Point target);
     };

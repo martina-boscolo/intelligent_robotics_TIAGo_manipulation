@@ -16,6 +16,7 @@
 #include <math.h>
 #include <vector>
 
+#include "ir2425_group_08/RouteHandler.h"
 #include "ir2425_group_08/PlaceService.h"
 
 //Decent waypoints to scan tag with ID=10
@@ -35,13 +36,13 @@ std::vector<geometry_msgs::Pose> target_poses = {
     // Second pose
     []() {
         geometry_msgs::Pose pose;
-        pose.position.x = 9.191;
-        pose.position.y = -2.266;
+        pose.position.x = 8.828;
+        pose.position.y = -1.972;
         pose.position.z = 0.0;
         pose.orientation.x = 0.0;
         pose.orientation.y = 0.0;
-        pose.orientation.z = -0.999;
-        pose.orientation.w = 0.037;
+        pose.orientation.z = -1.0;
+        pose.orientation.w = 0.0;
         return pose;
     }()
 };
@@ -283,9 +284,11 @@ int main(int argc, char **argv)
     ROS_INFO("q = %f", q);
 
     extendTorso();
-    inclineHead(M_PI / 6);
+    inclineHead(M_PI / 4);
 
-    moveToPoses(target_poses);
+    //moveToPoses(target_poses);
+    ir2425_group_08::RouteHandler rh;
+    rh.followPoses(target_poses);
 
     int n = 3;
     // Generate and transform points

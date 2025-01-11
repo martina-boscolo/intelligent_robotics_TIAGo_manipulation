@@ -6,8 +6,26 @@
 #include <apriltag_ros/AprilTagDetectionArray.h>
 #include <tf/transform_listener.h>
 
+#include "ir2425_group_08/RouteHandler.h"
 #include "ir2425_group_08/PlaceService.h"
 #include "ir2425_group_08/PickAndPlaceAction.h"
+
+// tavolo pick: Setting goal: Frame:map, Position(8.907, -2.977, 0.000), Orientation(0.000, 0.000, 1.000, 0.009) = Angle: 3.124
+
+std::vector<geometry_msgs::Pose> target_poses = {
+    // First pose
+    []() {
+        geometry_msgs::Pose pose;
+        pose.position.x = 8.907;
+        pose.position.y = -2.977;
+        pose.position.z = 0.0;
+        pose.orientation.x = 0.0;
+        pose.orientation.y = 0.0;
+        pose.orientation.z = 1.0;
+        pose.orientation.w = 0.009;
+        return pose;
+    }()
+};
 
 std::string NODE_A_SRV = "/place_goal";
 std::vector<geometry_msgs::Point> PlaceServicePoints;
@@ -15,6 +33,7 @@ int numPlaceServicePoints;
 
 std::vector<geometry_msgs::Pose> foundTags;
 std::vector<int> foundTagIds;
+ir2425_group_08::RouteHandler* rh_ptr;
 
 actionlib::SimpleActionClient<ir2425_group_08::PickAndPlaceAction> *ac_ptr;
 
@@ -24,6 +43,8 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
 
     PlaceServicePoints = req.target_points;
     numPlaceServicePoints = req.num_goals; // remove it, redoundant
+
+    rh_ptr->followPoses(target_poses);
 
     res.success = true; // Assuming a response member named `success`.
     return true;        // Return true to indicate the service was processed successfully.
@@ -83,7 +104,7 @@ void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
                 goal.goal_pose = pos_out.pose;
                 goal.id = detection.id[0];
 
-                ac_ptr->sendGoal(goal);
+                //ac_ptr->sendGoal(goal);
             }
         }
     }
@@ -97,6 +118,9 @@ int main(int argc, char **argv)
     ros::ServiceServer server = nh.advertiseService(NODE_A_SRV, handlePlaceService);
 
     ROS_INFO("Node B is ready to handle place_goal service.");
+
+    ir2425_group_08::RouteHandler rh;
+    rh_ptr = &rh;
 
     actionlib::SimpleActionClient<ir2425_group_08::PickAndPlaceAction> ac("/pick_and_place", true);
     ac_ptr = &ac;

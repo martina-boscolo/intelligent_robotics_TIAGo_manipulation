@@ -12,6 +12,39 @@ namespace ir2425_group_08
 
     // public
 
+    bool RouteHandler::followPoses(std::vector<geometry_msgs::Pose> poses)
+    {
+        for (size_t i = 0; i < poses.size(); ++i)
+        {
+            // Define the goal pose
+            move_base_msgs::MoveBaseGoal goal;
+            goal.target_pose.header.frame_id = "map"; // Target frame
+            goal.target_pose.header.stamp = ros::Time::now();
+            goal.target_pose.pose = poses[i];        // Set the pose from the vector
+
+            // Log and send the goal
+            ROS_INFO("Sending goal %lu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
+                    i + 1,
+                    poses[i].position.x, poses[i].position.y, poses[i].position.z,
+                    poses[i].orientation.x, poses[i].orientation.y, poses[i].orientation.z, poses[i].orientation.w);
+            this->ac_.sendGoal(goal);
+
+            // Wait for the result
+            bool success = this->ac_.waitForResult(ros::Duration(30.0)); // Timeout after 30 seconds
+            if (success && this->ac_.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+            {
+                ROS_INFO("Successfully reached goal %lu!", i + 1);
+            }
+            else
+            {
+                ROS_WARN("Failed to reach goal %lu. Aborting remaining goals.", i + 1);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     bool RouteHandler::followWaypoints(std::vector<geometry_msgs::Point> waypoints)
     {
         int index = 0;
@@ -30,6 +63,7 @@ namespace ir2425_group_08
             ROS_INFO_STREAM("Waypoint " << index << " reached: " + result);
 
             last_waypoint_failed = !result;
+            index++;
         }
 
         return !last_waypoint_failed;
