@@ -4,6 +4,7 @@
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
 #include <apriltag_ros/AprilTagDetectionArray.h>
+#include <tf/transform_listener.h>
 
 #include "ir2425_group_08/PlaceService.h"
 #include "ir2425_group_08/PickAndPlaceAction.h"
@@ -15,32 +16,70 @@ int numPlaceServicePoints;
 std::vector<geometry_msgs::Pose> foundTags;
 std::vector<int> foundTagIds;
 
-actionlib::SimpleActionClient<ir2425_group_08::PickAndPlaceAction>* ac_ptr;
+actionlib::SimpleActionClient<ir2425_group_08::PickAndPlaceAction> *ac_ptr;
 
-bool handlePlaceService(ir2425_group_08::PlaceService::Request& req, ir2425_group_08::PlaceService::Response& res) {
+bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_group_08::PlaceService::Response &res)
+{
     ROS_INFO_STREAM("Received " << req.num_goals << " goals for pick and place");
 
     PlaceServicePoints = req.target_points;
     numPlaceServicePoints = req.num_goals; // remove it, redoundant
 
-    res.success = true;  // Assuming a response member named `success`.
-    return true;         // Return true to indicate the service was processed successfully.
+    res.success = true; // Assuming a response member named `success`.
+    return true;        // Return true to indicate the service was processed successfully.
 }
 
-void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr& msg)
+void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
 {
-    for(auto detection : msg->detections)
+    for (auto detection : msg->detections)
     {
         if (detection.id[0] != 10)
         {
             if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end())
             {
-                ROS_INFO_STREAM("Found apriltag " << detection.id[0] << " at pose " << detection.pose.pose.pose);
-                foundTags.push_back(detection.pose.pose.pose);
+
+                tf::TransformListener listener;
+                tf::StampedTransform transform;
+                std::string target_frame = "map";
+                std::string source_frame = msg->header.frame_id;
+
+                while (!listener.canTransform(target_frame, source_frame, ros::Time(0)))
+                    ros::Duration(0.5).sleep();
+
+                // Transform available
+                geometry_msgs::PoseStamped pos_in;
+                geometry_msgs::PoseStamped pos_out;
+
+                
+
+                    // if (msg->detections.at(i).pose.header.frame_id == "tag_10")
+                    // { detection.pose.pose.pose;
+                    pos_in.header.frame_id = detection.pose.header.frame_id;
+                    pos_in.pose.position.x = detection.pose.pose.pose.position.x;
+                    pos_in.pose.position.y = detection.pose.pose.pose.position.y;
+                    pos_in.pose.position.z = detection.pose.pose.pose.position.z;
+                    pos_in.pose.orientation.x = detection.pose.pose.pose.orientation.x;
+                    pos_in.pose.orientation.y = detection.pose.pose.pose.orientation.y;
+                    pos_in.pose.orientation.z = detection.pose.pose.pose.orientation.z;
+                    pos_in.pose.orientation.w = detection.pose.pose.pose.orientation.w;
+
+                    listener.transformPose(target_frame, pos_in, pos_out);
+
+                    ROS_INFO_STREAM("Obj with ID: " << detection.id[0]);
+                    ROS_INFO_STREAM("Original pose\n"
+                                    << pos_in);
+                    ROS_INFO_STREAM("Transformed pose\n"
+                                    << pos_out);
+                    // tag10Processed = true;
+                    // }
+                
+
+                ROS_INFO_STREAM("Found apriltag " << detection.id[0] << " at pose " << pos_out.pose);
+                foundTags.push_back(pos_out.pose);
                 foundTagIds.push_back(detection.id[0]);
 
                 ir2425_group_08::PickAndPlaceGoal goal;
-                goal.goal_pose = detection.pose.pose.pose;
+                goal.goal_pose = pos_out.pose;
                 goal.id = detection.id[0];
 
                 ac_ptr->sendGoal(goal);
@@ -49,7 +88,8 @@ void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr& msg)
     }
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     ros::init(argc, argv, "node_b");
     ros::NodeHandle nh;
 
