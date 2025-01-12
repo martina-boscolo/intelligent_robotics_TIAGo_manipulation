@@ -61,7 +61,7 @@ void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
 
                 tf::TransformListener listener;
                 tf::StampedTransform transform;
-                std::string target_frame = "map";
+                std::string target_frame = "base_link";
                // std::string source_frame = msg->header.frame_id;
                  std::string source_frame = detection.pose.header.frame_id;
 
@@ -104,7 +104,7 @@ void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
                 goal.goal_pose = pos_out.pose;
                 goal.id = detection.id[0];
 
-                //ac_ptr->sendGoal(goal);
+                ac_ptr->sendGoal(goal);
             }
         }
     }
