@@ -115,7 +115,7 @@ void addCollisionObject(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal )
         return;
     } else if (goal->id <= 3 && goal->id >= 1) {
         obj_shape.type = obj_shape.CYLINDER;
-        obj_shape.dimensions = {0.1, 0.05};
+        obj_shape.dimensions = {0.08, 0.05};
         obj_pose.position.z -=0.05;
     } else if (goal->id <= 6 && goal->id >= 4) {
         obj_shape.type = obj_shape.BOX;
@@ -124,7 +124,7 @@ void addCollisionObject(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal )
     } else if (goal->id <= 9 && goal->id >= 7) {
         obj_shape.type = obj_shape.BOX;
         obj_shape.dimensions = {0.05, 0.05, 0.05};
-        obj_pose.position.z -=0.015; //approx
+        obj_pose.position.z -=0.01; //approx
     }
     obj.primitives.push_back(obj_shape);
     obj.primitive_poses.push_back(obj_pose);
@@ -263,7 +263,7 @@ void goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
     }
     else if (goal <= 3 && goal >= 1)
     {
-        grasp_pose.position.z -= 0.03; 
+        grasp_pose.position.z -= 0.076; 
         ROS_INFO("hexagon");
     }
     else if (goal <= 6 && goal >= 4)
@@ -273,7 +273,7 @@ void goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
     }
     else if (goal <= 9 && goal >= 7)
     {
-        grasp_pose.position.z -= 0.7;
+        grasp_pose.position.z -= 0.064;
         ROS_INFO("triangle");
     }
 
@@ -370,6 +370,10 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     //     ROS_ERROR("Planning to grasp pose failed.");
     //     return;
     // }
+
+    // Remove the object from the collision environment
+    planning_scene_interface.removeCollisionObjects({std::to_string(goal->id)});
+
     gripper_goal.trajectory.points.clear(); // Clear the previous trajectory
 
     
@@ -439,8 +443,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 
 
 
-    // Remove the object from the collision environment
-    planning_scene_interface.removeCollisionObjects({std::to_string(goal->id)});
+
 
     // Indicate success
     ir2425_group_08::PickAndPlaceResult result;
