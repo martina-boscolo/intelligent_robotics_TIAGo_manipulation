@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   apriltag_ros
   tiago_iaslab_simulation
+  gazebo_ros_link_attacher
   moveit_core
   moveit_ros_planning
   moveit_ros_planning_interface

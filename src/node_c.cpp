@@ -208,14 +208,14 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
         roll = 0;
         pitch = M_PI_2;
         pre_grasp_pose.position.z += 0.3; 
-        ROS_INFO("hexagon");
+        ROS_INFO("Pregrasp for hexagon...");
     }
     else if (goal->id <= 6 && goal->id >= 4)
     {
         roll = 0;
         pitch = M_PI_2;
         pre_grasp_pose.position.z += 0.3;
-        ROS_INFO("cube"); 
+        ROS_INFO("Pregrasp for cube..."); 
     }
     else if (goal->id <= 9 && goal->id >= 7)
     {
@@ -223,7 +223,7 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
         pitch = M_PI_2;
         //yaw += M_PI_2;
         pre_grasp_pose.position.z += 0.3;
-        ROS_INFO("triangle");
+        ROS_INFO("Pregrasp for triangle...");
     }
 
     final_quat.setRPY(roll, pitch, yaw);
@@ -264,17 +264,17 @@ void goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
     else if (goal <= 3 && goal >= 1)
     {
         grasp_pose.position.z -= 0.076; 
-        ROS_INFO("hexagon");
+        ROS_INFO("Grasp for hexagon...");
     }
     else if (goal <= 6 && goal >= 4)
     {
         grasp_pose.position.z -= 0.08;
-        ROS_INFO("cube"); 
+        ROS_INFO("Grasp for cube..."); 
     }
     else if (goal <= 9 && goal >= 7)
     {
         grasp_pose.position.z -= 0.064;
-        ROS_INFO("triangle");
+        ROS_INFO("Grasp for triangle...");
     }
 
     move_group.setPoseTarget(grasp_pose);
@@ -293,6 +293,9 @@ void goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
 
 void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
+    ROS_INFO("Creating collosion objects for the 2 tables");
+    addGlobalCollisionObject();
+
     ROS_INFO_STREAM("Got tag " << goal->id << " with pose " << goal->goal_pose);
 
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
@@ -317,6 +320,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     obj_pose.orientation = goal->goal_pose.orientation;
 
     //deve diventare addCollisionObjects
+    ROS_INFO_STREAM("Adding collision object for tag " << goal->id);
     addCollisionObject(goal);
 
     // Plan to pre-grasp pose
@@ -372,6 +376,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     // }
 
     // Remove the object from the collision environment
+    ROS_INFO("Removing collision object");
     planning_scene_interface.removeCollisionObjects({std::to_string(goal->id)});
 
     gripper_goal.trajectory.points.clear(); // Clear the previous trajectory
@@ -465,7 +470,6 @@ int main(int argc, char **argv)
     // moveit::planning_interface::MoveGroupInterface gripper_group("gripper");
     // arm_group.setPlanningTime(10.0);
     // gripper_group.setPlanningTime(10.0);
-    addGlobalCollisionObject();
 
     actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> as(nh, "/pick_and_place", pickAndPlaceCallback, false);
     as_ptr = &as;
