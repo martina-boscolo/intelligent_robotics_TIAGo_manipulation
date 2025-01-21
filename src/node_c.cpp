@@ -6,8 +6,6 @@
 #include <std_msgs/String.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf/transform_datatypes.h>
-#include <tf/transform_listener.h>
-#include <tf/transform_broadcaster.h>
 #include "ir2425_group_08/PickAndPlaceAction.h"
 #include <gazebo_ros_link_attacher/Attach.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
@@ -101,8 +99,7 @@ void addCollisionObject(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal )
     // {   // Cycle through all detected objects
 
     moveit_msgs::CollisionObject obj;
-    std::string tag_frame = "tag_" + std::to_string(goal->id);
-    obj.header.frame_id = tag_frame;
+    obj.header.frame_id = "map";
     obj.id = std::to_string(goal->id);
 //TODO: TUTTI GLI OGGETTI DEVONO ESSERE SPOSTATI DI METÀ ALTEZZA ALTRIMENTI SONO CREATI CON L'APRILTAG AL CENTRO
     geometry_msgs::Pose obj_pose;
@@ -182,78 +179,19 @@ void addGlobalCollisionObject( )
     planning_scene_interface.applyCollisionObjects({pick_table, place_table});
 }
 
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-void createNewFrameAtPose(const geometry_msgs::PoseStamped &pose, const std::string &new_frame_id)
-{
-    static tf::TransformBroadcaster tf_broadcaster;
-
-    tf::Transform transform;
-    tf::Quaternion quaternion;
-
-    // Set the transform's origin
-    transform.setOrigin(tf::Vector3(
-        pose.pose.position.x,
-        pose.pose.position.y,
-        pose.pose.position.z));
-
-    // Set the transform's rotation
-    quaternion.setX(pose.pose.orientation.x);
-    quaternion.setY(pose.pose.orientation.y);
-    quaternion.setZ(pose.pose.orientation.z);
-    quaternion.setW(pose.pose.orientation.w);
-    transform.setRotation(quaternion);
-
-    // Broadcast the transform
-    tf_broadcaster.sendTransform(tf::StampedTransform(
-        transform,
-        ros::Time::now(),
-        pose.header.frame_id, // Parent frame
-        new_frame_id          // New frame
-    ));
-}
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-
-
 geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
-    move_group.setPoseReferenceFrame("base_link");
+    move_group.setPoseReferenceFrame("map");
     move_group.setPlanningTime(30.0);
 
-    std::string tag_frame = "tag_" + std::to_string(goal->id);
-    tf::TransformListener listener;
-    tf::StampedTransform transform;
-    std::string target_frame = "base_link";
-// std::string source_frame = msg->header.frame_id;
-    std::string source_frame = tag_frame;
-
-    while (!listener.canTransform(target_frame, source_frame, ros::Time(0)))
-        ros::Duration(0.5).sleep();
-
-    // Transform available
-    geometry_msgs::PoseStamped pos_in;
-    geometry_msgs::PoseStamped pos_out;
+    geometry_msgs::Pose obj_pose;
+    obj_pose.position.x = goal->goal_pose.position.x;
+    obj_pose.position.y = goal->goal_pose.position.y;
+    obj_pose.position.z = goal->goal_pose.position.z;
+    obj_pose.orientation = goal->goal_pose.orientation;
 
     
-
-        // if (msg->detections.at(i).pose.header.frame_id == "tag_10")
-        // { detection.pose.pose.pose;
-        pos_in.header.frame_id = tag_frame;
-        pos_in.pose.position.x = 0.0;
-        pos_in.pose.position.y = 0.0;
-        pos_in.pose.position.z = 0.0;
-        pos_in.pose.orientation.x = 0.0;
-        pos_in.pose.orientation.y = 0.0;
-        pos_in.pose.orientation.z = 0.0;
-        pos_in.pose.orientation.w = 1.0;
-        listener.transformPose(target_frame, pos_in, pos_out);
-
-    geometry_msgs::Pose obj_pose;
-    obj_pose.position.x = pos_out.pose.position.x;
-    obj_pose.position.y = pos_out.pose.position.y;
-    obj_pose.position.z = pos_out.pose.position.z;
-    obj_pose.orientation = pos_out.pose.orientation;
-
     geometry_msgs::Pose pre_grasp_pose = obj_pose;
 
     tf::Quaternion init_quat(obj_pose.orientation.x, obj_pose.orientation.y, obj_pose.orientation.z, obj_pose.orientation.w);
@@ -270,14 +208,14 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
         roll = 0;
         pitch = M_PI_2;
         pre_grasp_pose.position.z += 0.3; 
-        ROS_INFO("Pregrasp for hexagon...");
+        ROS_INFO("hexagon");
     }
     else if (goal->id <= 6 && goal->id >= 4)
     {
         roll = 0;
         pitch = M_PI_2;
         pre_grasp_pose.position.z += 0.3;
-        ROS_INFO("Pregrasp for cube..."); 
+        ROS_INFO("cube"); 
     }
     else if (goal->id <= 9 && goal->id >= 7)
     {
@@ -285,15 +223,8 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
         pitch = M_PI_2;
         //yaw += M_PI_2;
         pre_grasp_pose.position.z += 0.3;
-        ROS_INFO("Pregrasp for triangle...");
+        ROS_INFO("triangle");
     }
-
-    geometry_msgs::PoseStamped pre_grasp;
-    pre_grasp.pose = pre_grasp_pose;
-    pre_grasp.header.frame_id = tag_frame;
-    
-    createNewFrameAtPose(pre_grasp, "Schifezza");
-
 
     final_quat.setRPY(roll, pitch, yaw);
     pre_grasp_pose.orientation.w = final_quat.w();
@@ -320,7 +251,7 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
 void goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
 
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
-    move_group.setPoseReferenceFrame("base_link");
+    move_group.setPoseReferenceFrame("map");
     move_group.setPlanningTime(30.0);
     
     geometry_msgs::Pose grasp_pose = pre_grasp_pose;
@@ -333,17 +264,17 @@ void goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
     else if (goal <= 3 && goal >= 1)
     {
         grasp_pose.position.z -= 0.076; 
-        ROS_INFO("Grasp for hexagon...");
+        ROS_INFO("hexagon");
     }
     else if (goal <= 6 && goal >= 4)
     {
         grasp_pose.position.z -= 0.08;
-        ROS_INFO("Grasp for cube..."); 
+        ROS_INFO("cube"); 
     }
     else if (goal <= 9 && goal >= 7)
     {
-        grasp_pose.position.z -= 0.064;
-        ROS_INFO("Grasp for triangle...");
+        grasp_pose.position.z -= 0.063;
+        ROS_INFO("triangle");
     }
 
     move_group.setPoseTarget(grasp_pose);
@@ -362,17 +293,14 @@ void goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
 
 void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
-    ROS_INFO("Creating collosion objects for the 2 tables");
-    addGlobalCollisionObject();
-    
     ROS_INFO_STREAM("Got tag " << goal->id << " with pose " << goal->goal_pose);
 
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
     moveit::planning_interface::MoveGroupInterface gripper_group("gripper");
 
-    move_group.setPoseReferenceFrame("base_link");
-    gripper_group.setPoseReferenceFrame("base_link");
+    move_group.setPoseReferenceFrame("map");
+    gripper_group.setPoseReferenceFrame("map");
 
     gripper_group.setPlanningTime(10.0);
 
@@ -389,7 +317,6 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     obj_pose.orientation = goal->goal_pose.orientation;
 
     //deve diventare addCollisionObjects
-    ROS_INFO_STREAM("Adding collision object for tag " << goal->id);
     addCollisionObject(goal);
 
     // Plan to pre-grasp pose
@@ -445,7 +372,6 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     // }
 
     // Remove the object from the collision environment
-    ROS_INFO("Removing collision object");
     planning_scene_interface.removeCollisionObjects({std::to_string(goal->id)});
 
     gripper_goal.trajectory.points.clear(); // Clear the previous trajectory
@@ -539,8 +465,7 @@ int main(int argc, char **argv)
     // moveit::planning_interface::MoveGroupInterface gripper_group("gripper");
     // arm_group.setPlanningTime(10.0);
     // gripper_group.setPlanningTime(10.0);
-    // ROS_INFO("Creating collosion objects for the 2 tables");
-    // addGlobalCollisionObject();
+    addGlobalCollisionObject();
 
     actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> as(nh, "/pick_and_place", pickAndPlaceCallback, false);
     as_ptr = &as;

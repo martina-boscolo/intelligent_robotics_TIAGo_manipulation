@@ -3,7 +3,6 @@
 namespace ir2425_group_08
 {
     // ctor
-
     RouteHandler::RouteHandler() : ac_("/move_base", true)
     {
         this->ac_.waitForServer();
@@ -11,7 +10,6 @@ namespace ir2425_group_08
     }
 
     // public
-
     bool RouteHandler::followPoses(std::vector<geometry_msgs::Pose> poses)
     {
         for (size_t i = 0; i < poses.size(); ++i)
@@ -43,6 +41,23 @@ namespace ir2425_group_08
         }
 
         return true;
+    }
+
+    void RouteHandler::followPosesAsync(
+        std::vector<geometry_msgs::Pose> poses,
+        boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    {
+        if (poses.empty()) {
+            ROS_WARN("No poses provided for followPosesAsync");
+            return;
+        }
+
+        current_poses_ = poses;
+        current_pose_index_ = 0;
+        done_callback_ = done_cb;
+
+        // Start following the first pose
+        sendNextPose();
     }
 
     bool RouteHandler::followWaypoints(std::vector<geometry_msgs::Point> waypoints)
@@ -95,6 +110,49 @@ namespace ir2425_group_08
     }
 
     // private
+    void RouteHandler::sendNextPose()
+    {
+        if (current_pose_index_ >= current_poses_.size()) {
+            // All poses completed successfully
+            if (done_callback_) {
+                done_callback_(actionlib::SimpleClientGoalState::SUCCEEDED);
+            }
+            return;
+        }
+
+        move_base_msgs::MoveBaseGoal goal;
+        goal.target_pose.header.frame_id = "map";
+        goal.target_pose.header.stamp = ros::Time::now();
+        goal.target_pose.pose = current_poses_[current_pose_index_];
+
+        ROS_INFO("Sending goal %zu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
+                current_pose_index_ + 1,
+                goal.target_pose.pose.position.x,
+                goal.target_pose.pose.position.y,
+                goal.target_pose.pose.position.z,
+                goal.target_pose.pose.orientation.x,
+                goal.target_pose.pose.orientation.y,
+                goal.target_pose.pose.orientation.z,
+                goal.target_pose.pose.orientation.w);
+
+        // Set up the callback for when this goal completes
+        actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>::SimpleDoneCallback cb =
+            [this](const actionlib::SimpleClientGoalState& state,
+                  const move_base_msgs::MoveBaseResultConstPtr& result) {
+                if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
+                    ROS_INFO("Successfully reached goal %zu!", current_pose_index_ + 1);
+                    current_pose_index_++;
+                    sendNextPose();
+                } else {
+                    ROS_WARN("Failed to reach goal %zu. Aborting remaining goals.", current_pose_index_ + 1);
+                    if (done_callback_) {
+                        done_callback_(state);
+                    }
+                }
+            };
+
+        this->ac_.sendGoal(goal, cb);
+    }
 
     geometry_msgs::Point RouteHandler::transformPoint(const geometry_msgs::Point& point_in, const std::string& source_frame, const std::string& target_frame) 
     {

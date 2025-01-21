@@ -64,8 +64,28 @@
   <build_depend>geometry_msgs</build_depend>
   <exec_depend>geometry_msgs</exec_depend>
 
-   <build_depend>tiago_iaslab_simulation</build_depend>
-    <exec_depend>tiago_iaslab_simulation</exec_depend>
+  <build_depend>tiago_iaslab_simulation</build_depend>
+  <exec_depend>tiago_iaslab_simulation</exec_depend>
+
+  <build_depend>moveit_core</build_depend>
+  <build_depend>moveit_ros_planning</build_depend>
+  <build_depend>moveit_ros_planning_interface</build_depend>
+  <exec_depend>moveit_core</exec_depend>
+  <exec_depend>moveit_ros_planning</exec_depend>
+  <exec_depend>moveit_ros_planning_interface</exec_depend>
+
+  <build_depend>tf</build_depend>
+  <exec_depend>tf</exec_depend>
+  <build_depend>tf2</build_depend>
+  <exec_depend>tf2</exec_depend>
+
+
+  <build_depend>image_transport</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <exec_depend>image_transport</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <build_depend>opencv</build_depend>
+  <exec_depend>opencv</exec_depend>
 
   <build_depend>moveit_core</build_depend>
   <build_depend>moveit_ros_planning</build_depend>
