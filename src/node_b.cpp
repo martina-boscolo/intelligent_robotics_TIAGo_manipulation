@@ -16,7 +16,7 @@ std::vector<geometry_msgs::Pose> target_poses = {
     // First pose
     []() {
         geometry_msgs::Pose pose;
-        pose.position.x = 8.907;
+        pose.position.x = 8.807;
         pose.position.y = -2.977;
         pose.position.z = 0.0;
         pose.orientation.x = 0.0;
@@ -53,66 +53,117 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     return true;        // Return true to indicate the service was processed successfully.
 }
 
+// void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
+// {
+//     if (callbackToNodeCOn)
+//     {
+//         for (auto detection : msg->detections)
+//         {
+//             if (detection.id[0] != 10)
+//             {
+//                 if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end())
+//                 {
+
+//                     tf::TransformListener listener;
+//                     tf::StampedTransform transform;
+//                     std::string target_frame = "base_link";
+//                 // std::string source_frame = msg->header.frame_id;
+//                     std::string source_frame = detection.pose.header.frame_id;
+
+//                     while (!listener.canTransform(target_frame, source_frame, ros::Time(0)))
+//                         ros::Duration(0.5).sleep();
+
+//                     // Transform available
+//                     geometry_msgs::PoseStamped pos_in;
+//                     geometry_msgs::PoseStamped pos_out;
+
+                    
+
+//                         // if (msg->detections.at(i).pose.header.frame_id == "tag_10")
+//                         // { detection.pose.pose.pose;
+//                         pos_in.header.frame_id = detection.pose.header.frame_id;
+//                         pos_in.pose.position.x = detection.pose.pose.pose.position.x;
+//                         pos_in.pose.position.y = detection.pose.pose.pose.position.y;
+//                         pos_in.pose.position.z = detection.pose.pose.pose.position.z;
+//                         pos_in.pose.orientation.x = detection.pose.pose.pose.orientation.x;
+//                         pos_in.pose.orientation.y = detection.pose.pose.pose.orientation.y;
+//                         pos_in.pose.orientation.z = detection.pose.pose.pose.orientation.z;
+//                         pos_in.pose.orientation.w = detection.pose.pose.pose.orientation.w;
+
+//                         listener.transformPose(target_frame, pos_in, pos_out);
+
+//                         ROS_INFO_STREAM("Obj with ID: " << detection.id[0]);
+//                         ROS_INFO_STREAM("Original pose\n"
+//                                         << pos_in);
+//                         ROS_INFO_STREAM("Transformed pose\n"
+//                                         << pos_out);
+//                         // tag10Processed = true;
+//                         // }
+                    
+
+//                     ROS_INFO_STREAM("Found apriltag " << detection.id[0] << " at pose " << pos_out.pose);
+//                     foundTags.push_back(pos_out.pose);
+//                     foundTagIds.push_back(detection.id[0]);
+
+//                     ir2425_group_08::PickAndPlaceGoal goal;
+//                     goal.goal_pose = pos_out.pose;
+//                     goal.id = detection.id[0];
+
+//                     ac_ptr->sendGoal(goal);
+//                 }
+//             }
+//         }
+//     }
+// }
+
 void tagsCallback(const apriltag_ros::AprilTagDetectionArrayConstPtr &msg)
 {
-    if (callbackToNodeCOn)
+    if (!callbackToNodeCOn)
+        return;
+
+    for (const auto &detection : msg->detections)
     {
-        for (auto detection : msg->detections)
-        {
-            if (detection.id[0] != 10)
-            {
-                if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end())
-                {
+        int tag_id = detection.id[0]; // Extract the tag ID
 
-                    tf::TransformListener listener;
-                    tf::StampedTransform transform;
-                    std::string target_frame = "base_link";
-                // std::string source_frame = msg->header.frame_id;
-                    std::string source_frame = detection.pose.header.frame_id;
+        // Skip if the tag is already processed
+        if (std::find(foundTagIds.begin(), foundTagIds.end(), tag_id) != foundTagIds.end())
+            continue;
 
-                    while (!listener.canTransform(target_frame, source_frame, ros::Time(0)))
-                        ros::Duration(0.5).sleep();
+        // Determine the tag frame name (e.g., "tag_1", "tag_2", etc.)
+        std::string tag_frame = "tag_" + std::to_string(tag_id);
 
-                    // Transform available
-                    geometry_msgs::PoseStamped pos_in;
-                    geometry_msgs::PoseStamped pos_out;
+        // Create the pose in the tag's own frame
+        geometry_msgs::PoseStamped pose_in_tag_frame;
+        pose_in_tag_frame.header.frame_id = tag_frame; // Use the tag's frame
+        pose_in_tag_frame.header.stamp = ros::Time::now();
 
-                    
+        // Position in the tag frame is the origin (0, 0, 0)
+        pose_in_tag_frame.pose.position.x = 0.0;
+        pose_in_tag_frame.pose.position.y = 0.0;
+        pose_in_tag_frame.pose.position.z = 0.0;
 
-                        // if (msg->detections.at(i).pose.header.frame_id == "tag_10")
-                        // { detection.pose.pose.pose;
-                        pos_in.header.frame_id = detection.pose.header.frame_id;
-                        pos_in.pose.position.x = detection.pose.pose.pose.position.x;
-                        pos_in.pose.position.y = detection.pose.pose.pose.position.y;
-                        pos_in.pose.position.z = detection.pose.pose.pose.position.z;
-                        pos_in.pose.orientation.x = detection.pose.pose.pose.orientation.x;
-                        pos_in.pose.orientation.y = detection.pose.pose.pose.orientation.y;
-                        pos_in.pose.orientation.z = detection.pose.pose.pose.orientation.z;
-                        pos_in.pose.orientation.w = detection.pose.pose.pose.orientation.w;
+        // Orientation in the tag frame is an identity quaternion (no rotation)
+        pose_in_tag_frame.pose.orientation.x = 0.0;
+        pose_in_tag_frame.pose.orientation.y = 0.0;
+        pose_in_tag_frame.pose.orientation.z = 0.0;
+        pose_in_tag_frame.pose.orientation.w = 1.0;
 
-                        listener.transformPose(target_frame, pos_in, pos_out);
+        // Log the tag information
+        ROS_INFO_STREAM("Found AprilTag " << tag_id << " with pose in frame " << tag_frame);
+        ROS_INFO_STREAM("Pose in " << tag_frame << ": " << pose_in_tag_frame);
 
-                        ROS_INFO_STREAM("Obj with ID: " << detection.id[0]);
-                        ROS_INFO_STREAM("Original pose\n"
-                                        << pos_in);
-                        ROS_INFO_STREAM("Transformed pose\n"
-                                        << pos_out);
-                        // tag10Processed = true;
-                        // }
-                    
+        // Add the tag to the list of processed tags
+        foundTagIds.push_back(tag_id);
 
-                    ROS_INFO_STREAM("Found apriltag " << detection.id[0] << " at pose " << pos_out.pose);
-                    foundTags.push_back(pos_out.pose);
-                    foundTagIds.push_back(detection.id[0]);
+        // Send the pose in the tag frame to Node C
+        ir2425_group_08::PickAndPlaceGoal goal;
+        goal.goal_pose = pose_in_tag_frame.pose;
+        goal.id = tag_id;
 
-                    ir2425_group_08::PickAndPlaceGoal goal;
-                    goal.goal_pose = pos_out.pose;
-                    goal.id = detection.id[0];
+        // Send the goal to the action client
+        ac_ptr->sendGoal(goal);
 
-                    ac_ptr->sendGoal(goal);
-                }
-            }
-        }
+        ROS_INFO_STREAM("Sent goal for AprilTag " << tag_id << " to Node C.");
     }
 }
 

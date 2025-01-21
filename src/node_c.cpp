@@ -6,6 +6,8 @@
 #include <std_msgs/String.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
 #include "ir2425_group_08/PickAndPlaceAction.h"
 #include <gazebo_ros_link_attacher/Attach.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
@@ -99,7 +101,8 @@ void addCollisionObject(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal )
     // {   // Cycle through all detected objects
 
     moveit_msgs::CollisionObject obj;
-    obj.header.frame_id = "base_link";
+    std::string tag_frame = "tag_" + std::to_string(goal->id);
+    obj.header.frame_id = tag_frame;
     obj.id = std::to_string(goal->id);
 //TODO: TUTTI GLI OGGETTI DEVONO ESSERE SPOSTATI DI METÀ ALTEZZA ALTRIMENTI SONO CREATI CON L'APRILTAG AL CENTRO
     geometry_msgs::Pose obj_pose;
@@ -179,19 +182,78 @@ void addGlobalCollisionObject( )
     planning_scene_interface.applyCollisionObjects({pick_table, place_table});
 }
 
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+void createNewFrameAtPose(const geometry_msgs::PoseStamped &pose, const std::string &new_frame_id)
+{
+    static tf::TransformBroadcaster tf_broadcaster;
+
+    tf::Transform transform;
+    tf::Quaternion quaternion;
+
+    // Set the transform's origin
+    transform.setOrigin(tf::Vector3(
+        pose.pose.position.x,
+        pose.pose.position.y,
+        pose.pose.position.z));
+
+    // Set the transform's rotation
+    quaternion.setX(pose.pose.orientation.x);
+    quaternion.setY(pose.pose.orientation.y);
+    quaternion.setZ(pose.pose.orientation.z);
+    quaternion.setW(pose.pose.orientation.w);
+    transform.setRotation(quaternion);
+
+    // Broadcast the transform
+    tf_broadcaster.sendTransform(tf::StampedTransform(
+        transform,
+        ros::Time::now(),
+        pose.header.frame_id, // Parent frame
+        new_frame_id          // New frame
+    ));
+}
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+
 geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
     move_group.setPoseReferenceFrame("base_link");
     move_group.setPlanningTime(30.0);
 
-    geometry_msgs::Pose obj_pose;
-    obj_pose.position.x = goal->goal_pose.position.x;
-    obj_pose.position.y = goal->goal_pose.position.y;
-    obj_pose.position.z = goal->goal_pose.position.z;
-    obj_pose.orientation = goal->goal_pose.orientation;
+    std::string tag_frame = "tag_" + std::to_string(goal->id);
+    tf::TransformListener listener;
+    tf::StampedTransform transform;
+    std::string target_frame = "base_link";
+// std::string source_frame = msg->header.frame_id;
+    std::string source_frame = tag_frame;
+
+    while (!listener.canTransform(target_frame, source_frame, ros::Time(0)))
+        ros::Duration(0.5).sleep();
+
+    // Transform available
+    geometry_msgs::PoseStamped pos_in;
+    geometry_msgs::PoseStamped pos_out;
 
     
+
+        // if (msg->detections.at(i).pose.header.frame_id == "tag_10")
+        // { detection.pose.pose.pose;
+        pos_in.header.frame_id = tag_frame;
+        pos_in.pose.position.x = 0.0;
+        pos_in.pose.position.y = 0.0;
+        pos_in.pose.position.z = 0.0;
+        pos_in.pose.orientation.x = 0.0;
+        pos_in.pose.orientation.y = 0.0;
+        pos_in.pose.orientation.z = 0.0;
+        pos_in.pose.orientation.w = 1.0;
+        listener.transformPose(target_frame, pos_in, pos_out);
+
+    geometry_msgs::Pose obj_pose;
+    obj_pose.position.x = pos_out.pose.position.x;
+    obj_pose.position.y = pos_out.pose.position.y;
+    obj_pose.position.z = pos_out.pose.position.z;
+    obj_pose.orientation = pos_out.pose.orientation;
+
     geometry_msgs::Pose pre_grasp_pose = obj_pose;
 
     tf::Quaternion init_quat(obj_pose.orientation.x, obj_pose.orientation.y, obj_pose.orientation.z, obj_pose.orientation.w);
@@ -225,6 +287,13 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
         pre_grasp_pose.position.z += 0.3;
         ROS_INFO("Pregrasp for triangle...");
     }
+
+    geometry_msgs::PoseStamped pre_grasp;
+    pre_grasp.pose = pre_grasp_pose;
+    pre_grasp.header.frame_id = tag_frame;
+    
+    createNewFrameAtPose(pre_grasp, "Schifezza");
+
 
     final_quat.setRPY(roll, pitch, yaw);
     pre_grasp_pose.orientation.w = final_quat.w();
@@ -295,7 +364,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
     ROS_INFO("Creating collosion objects for the 2 tables");
     addGlobalCollisionObject();
-
+    
     ROS_INFO_STREAM("Got tag " << goal->id << " with pose " << goal->goal_pose);
 
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
@@ -470,6 +539,8 @@ int main(int argc, char **argv)
     // moveit::planning_interface::MoveGroupInterface gripper_group("gripper");
     // arm_group.setPlanningTime(10.0);
     // gripper_group.setPlanningTime(10.0);
+    // ROS_INFO("Creating collosion objects for the 2 tables");
+    // addGlobalCollisionObject();
 
     actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> as(nh, "/pick_and_place", pickAndPlaceCallback, false);
     as_ptr = &as;
