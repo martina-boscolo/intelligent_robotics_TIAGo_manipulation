@@ -12,16 +12,30 @@ std::vector<geometry_msgs::Pose> target_poses = {
     // First pose
     []() {
         geometry_msgs::Pose pose;
-        pose.position.x = 8.907;
-        pose.position.y = -2.977;
+        pose.position.x = 8.807;
+        pose.position.y = -2.777;
         pose.position.z = 0.0;
         pose.orientation.x = 0.0;
         pose.orientation.y = 0.0;
         pose.orientation.z = 1.0;
         pose.orientation.w = 0.009;
         return pose;
-    }()
+     }(),
+    // []() {
+    //     geometry_msgs::Pose pose;
+    //     pose.position.x = 8.828;
+    //     pose.position.y = -1.972;
+    //     pose.position.z = 0.0;
+    //     pose.orientation.x = 0.0;
+    //     pose.orientation.y = 0.0;
+    //     pose.orientation.z = -1.0;
+    //     pose.orientation.w = 0.0;
+    //     return pose;
+    // }()
 };
+
+int placed_tags = 0;
+std::vector<int> foundTagIds;
 
 std::string NODE_A_SRV = "/place_goal";
 std::vector<geometry_msgs::Point> PlaceServicePoints;
@@ -59,19 +73,32 @@ bool scanForTags() {
 
     bool tagsFound = false;
     for (const auto& detection : msg->detections) {
-        if (detection.id[0] == 10) continue; // Skip tag 10
+        if (!(detection.id[0] == 10) && placed_tags < numPlaceServicePoints) {
+            geometry_msgs::PoseStamped transformed_pose = 
+                transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
 
-        geometry_msgs::PoseStamped transformed_pose = 
-            transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
+                ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
 
-        ROS_INFO_STREAM("Found apriltag " << detection.id[0] << " at transformed pose:\n" << transformed_pose.pose);
+            if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
+                foundTagIds.push_back(detection.id[0]);
+                ir2425_group_08::PickAndPlaceGoal goal;
+                goal.goal_pose = transformed_pose.pose;
+                goal.id = detection.id[0];
+                ROS_INFO_STREAM("Sending apriltag " << detection.id[0] << "as goal.");
+                ac_ptr->sendGoal(goal);
+                ROS_INFO("Waiting for result...");
+                bool finished_before_timeout = ac_ptr->waitForResult(ros::Duration(90.0)); //might need more time
+                if (finished_before_timeout) {
+                    ROS_INFO_STREAM("Tag " << detection.id[0] << " placed on the 'place table'.");
+                    placed_tags++;
+                }
+                else {
+                    ROS_INFO("Action did not finish before the time out."); // maybe wait for node c to reset
+                }
 
-        ir2425_group_08::PickAndPlaceGoal goal;
-        goal.goal_pose = transformed_pose.pose;
-        goal.id = detection.id[0];
-        ac_ptr->sendGoal(goal);
-        
-        tagsFound = true;
+                tagsFound = true;
+            }
+        }
     }
 
     return tagsFound;
@@ -91,8 +118,10 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     PlaceServicePoints = req.target_points;
     numPlaceServicePoints = req.num_goals;
 
-    // Set up the done callback before following poses
-    rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
+    if(placed_tags < numPlaceServicePoints) {
+        // Set up the done callback before following poses
+        rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
+    }
 
     res.success = true;
     return true;

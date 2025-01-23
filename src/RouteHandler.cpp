@@ -125,7 +125,7 @@ namespace ir2425_group_08
         goal.target_pose.header.stamp = ros::Time::now();
         goal.target_pose.pose = current_poses_[current_pose_index_];
 
-        ROS_INFO("Sending goal %zu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
+        ROS_INFO("Sending goal (waypoint) %zu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
                 current_pose_index_ + 1,
                 goal.target_pose.pose.position.x,
                 goal.target_pose.pose.position.y,
