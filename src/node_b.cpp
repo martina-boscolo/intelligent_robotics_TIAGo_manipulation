@@ -4,6 +4,7 @@
 #include <geometry_msgs/Pose.h>
 #include <apriltag_ros/AprilTagDetectionArray.h>
 #include <tf/transform_listener.h>
+#include <cmath>
 #include "ir2425_group_08/RouteHandler.h"
 #include "ir2425_group_08/PlaceService.h"
 #include "ir2425_group_08/PickAndPlaceAction.h"
@@ -34,7 +35,8 @@ std::vector<geometry_msgs::Pose> target_poses = {
     // }()
 };
 
-int placed_tags = 0;
+int PLACED_TAGS = 0;
+constexpr double TIAGO_ARM_MAX_REACH = 0.70;
 std::vector<int> foundTagIds;
 
 std::string NODE_A_SRV = "/place_goal";
@@ -61,6 +63,53 @@ geometry_msgs::PoseStamped transformTagPose(const geometry_msgs::Pose& tag_pose,
     return pos_out;
 }
 
+
+bool isPoseWithinArmReachXY(const geometry_msgs::PoseStamped &target_pose_map, double max_reach = TIAGO_ARM_MAX_REACH)
+{
+    static tf::TransformListener tf_listener;
+
+    try
+    {
+        tf::StampedTransform transform;
+        tf_listener.waitForTransform("base_link", "map", ros::Time(0), ros::Duration(2.0));
+        tf_listener.lookupTransform("base_link", "map", ros::Time(0), transform);
+
+        double robot_x = transform.getOrigin().x();
+        double robot_y = transform.getOrigin().y();
+
+        double target_x = target_pose_map.pose.position.x;
+        double target_y = target_pose_map.pose.position.y;
+
+        double distance_xy = std::sqrt(
+            std::pow(target_x - robot_x, 2) +
+            std::pow(target_y - robot_y, 2));
+
+        return distance_xy <= max_reach;
+    }
+    catch (tf::TransformException &ex)
+    {
+        ROS_WARN("Failed to lookup transform from 'map' to 'base_link': %s", ex.what());
+        return false;
+    }
+}
+
+void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id) {
+    ir2425_group_08::PickAndPlaceGoal goal;
+    goal.goal_pose = transformed_pose.pose;
+    goal.id = id;
+    ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
+    ac_ptr->sendGoal(goal);
+    ROS_INFO("Waiting for result...");
+    bool finished_before_timeout = ac_ptr->waitForResult(ros::Duration(90.0)); //might need more time
+    if (finished_before_timeout) {
+        ROS_INFO_STREAM("Apriltag " << id << " placed on the 'place table'.");
+        PLACED_TAGS++;
+    }
+    else {
+        ROS_INFO("Action did not finish before the time out."); // maybe wait for node c to reset
+    }
+}
+
 bool scanForTags() {
     ROS_INFO("Scanning for AprilTags...");
     apriltag_ros::AprilTagDetectionArrayConstPtr msg = 
@@ -73,34 +122,26 @@ bool scanForTags() {
 
     bool tagsFound = false;
     for (const auto& detection : msg->detections) {
-        if (!(detection.id[0] == 10) && placed_tags < numPlaceServicePoints) {
-            geometry_msgs::PoseStamped transformed_pose = 
-                transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
+        if (!(detection.id[0] == 10) && PLACED_TAGS < numPlaceServicePoints) {
+            geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
 
-                ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
+            ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
 
-            if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
-                foundTagIds.push_back(detection.id[0]);
-                ir2425_group_08::PickAndPlaceGoal goal;
-                goal.goal_pose = transformed_pose.pose;
-                goal.id = detection.id[0];
-                ROS_INFO_STREAM("Sending apriltag " << detection.id[0] << "as goal.");
-                ac_ptr->sendGoal(goal);
-                ROS_INFO("Waiting for result...");
-                bool finished_before_timeout = ac_ptr->waitForResult(ros::Duration(90.0)); //might need more time
-                if (finished_before_timeout) {
-                    ROS_INFO_STREAM("Tag " << detection.id[0] << " placed on the 'place table'.");
-                    placed_tags++;
+            if(isPoseWithinArmReachXY(transformed_pose)) {
+                if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
+                    foundTagIds.push_back(detection.id[0]);
+                    
+                    sendGoalTag(transformed_pose, detection.id[0])
+
+                    tagsFound = true;
                 }
-                else {
-                    ROS_INFO("Action did not finish before the time out."); // maybe wait for node c to reset
-                }
-
-                tagsFound = true;
             }
         }
+        else {
+            ROS_INFO_STREAM("Apriltag " << detection.id[0] << " out of reach.");
+        }
     }
-
+    ROS_INFO_STREAM("All reachable apriltags detected in this position sent. " << numPlaceServicePoints - PLACED_TAGS << " apriltags remain in order to complete the task.");
     return tagsFound;
 }
 
@@ -118,7 +159,8 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     PlaceServicePoints = req.target_points;
     numPlaceServicePoints = req.num_goals;
 
-    if(placed_tags < numPlaceServicePoints) {
+    //implement here the loop untill numPlaceServicePoints are placed, go to next anchor point, scan and send, repeat if needed
+    if(PLACED_TAGS < numPlaceServicePoints) {
         // Set up the done callback before following poses
         rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
     }
