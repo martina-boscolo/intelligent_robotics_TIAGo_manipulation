@@ -216,6 +216,32 @@ namespace ir2425_group_08
         return true;
     }
 
+    bool RouteHandler::goAsidePick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    {
+        auto last_cb = done_cb;
+        if (!done_cb)
+        {
+            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
+        }
+
+        goToWaypoint(2, last_cb);
+
+        return true;
+    }
+
+    bool RouteHandler::goBackPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    {
+        auto last_cb = done_cb;
+        if (!done_cb)
+        {
+            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
+        }
+
+        goToWaypoint(0, last_cb);
+
+        return true;
+    }
+
     // private
 
     void RouteHandler::sendNextPose()

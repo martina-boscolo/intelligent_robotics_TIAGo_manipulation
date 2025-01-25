@@ -40,6 +40,7 @@ std::vector<geometry_msgs::Pose> target_poses = {
 int PLACED_TAGS = 0;
 constexpr double TIAGO_ARM_MAX_REACH = 0.70;
 std::vector<int> foundTagIds;
+bool tagsFound = true;
 
 std::string NODE_A_SRV = "/place_goal";
 std::vector<geometry_msgs::Point> PlaceServicePoints;
@@ -113,39 +114,65 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id) {
     }
 }
 
-bool scanForTags() {
+void scanForTags() {
     ROS_INFO("Scanning for AprilTags...");
     apriltag_ros::AprilTagDetectionArrayConstPtr msg = 
         ros::topic::waitForMessage<apriltag_ros::AprilTagDetectionArray>("/tag_detections", *nh_ptr, ros::Duration(5.0));
     
     if (!msg) {
         ROS_WARN("No AprilTag detections received within timeout");
-        return false;
+        return;
     }
 
-    bool tagsFound = false;
-    for (const auto& detection : msg->detections) {
-        if (!(detection.id[0] == 10) && PLACED_TAGS < numPlaceServicePoints) {
-            geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
+    // for (const auto& detection : msg->detections) {
+    //     if (!(detection.id[0] == 10) && PLACED_TAGS < numPlaceServicePoints) {
+    //         geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
 
-            ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
+    //         ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
 
-            if(true) { /*isPoseWithinArmReachXY(transformed_pose)*/
-                if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
-                    foundTagIds.push_back(detection.id[0]);
+    //         if(true) { /*isPoseWithinArmReachXY(transformed_pose)*/
+    //             if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
+    //                 foundTagIds.push_back(detection.id[0]);
                     
-                    sendGoalTag(transformed_pose, detection.id[0]);
+    //                 sendGoalTag(transformed_pose, detection.id[0]);
 
-                    tagsFound = true;
-                }
-            }
-            else {
-                ROS_INFO_STREAM("Apriltag " << detection.id[0] << " out of reach.");
+    //                 tagsFound = true;
+    //             }
+    //         }
+    //         else {
+    //             ROS_INFO_STREAM("Apriltag " << detection.id[0] << " out of reach.");
+    //         }
+    //     }
+    // }
+
+    std::vector<int> new_ids; // potentially valid tags
+    for (const auto& detection : msg->detections)
+    {
+        if (!(detection.id[0] == 10) && std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end())
+        {
+            new_ids.push_back(detection.id[0]);
+        }
+    }
+
+    if (new_ids.empty())
+    {
+        tagsFound = false;
+        ROS_INFO("No valid tags found in this scan");
+    } else 
+    {
+        ROS_INFO_STREAM("Found apriltag " << new_ids[0]);
+
+        for (auto detection : msg->detections)
+        {
+            if (detection.id[0] == new_ids[0])
+            {
+                geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
+                foundTagIds.push_back(new_ids[0]);
+
+                sendGoalTag(transformed_pose, new_ids[0]);
             }
         }
     }
-    ROS_INFO_STREAM("All reachable apriltags detected in this position sent. " << numPlaceServicePoints - PLACED_TAGS << " apriltags remain in order to complete the task.");
-    return tagsFound;
 }
 
 
@@ -163,11 +190,37 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     numPlaceServicePoints = req.num_goals;
 
     //implement here the loop untill numPlaceServicePoints are placed, go to next anchor point, scan and send, repeat if needed
-    if(PLACED_TAGS < numPlaceServicePoints) {
-        // Set up the done callback before following poses
-        //rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
+    // if(PLACED_TAGS < numPlaceServicePoints) {
+    //     // Set up the done callback before following poses
+    //     //rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
+    //     rh_ptr->goFrontPick(poseReachedCallback);
+    // }
+
+    ROS_INFO("Moving front...");
+    tagsFound = true;
+
+    while(tagsFound) // && PLACED_TAGS < numPlaceServicePoints
+    {
         rh_ptr->goFrontPick(poseReachedCallback);
     }
+    ROS_INFO_STREAM("All reachable apriltags detected from front sent. " << numPlaceServicePoints - PLACED_TAGS 
+        << " apriltags remain in order to complete the task.");
+    tagsFound = true;
+
+    while(tagsFound) // && PLACED_TAGS < numPlaceServicePoints
+    {
+        rh_ptr->goAsidePick(poseReachedCallback);
+    }
+    ROS_INFO_STREAM("All reachable apriltags detected from aside sent. " << numPlaceServicePoints - PLACED_TAGS 
+        << " apriltags remain in order to complete the task.");
+    tagsFound = true;
+
+    while(tagsFound) // && PLACED_TAGS < numPlaceServicePoints
+    {
+        rh_ptr->goBackPick(poseReachedCallback);
+    }
+    ROS_INFO_STREAM("All reachable apriltags detected from back sent. " << numPlaceServicePoints - PLACED_TAGS 
+        << " apriltags remain in order to complete the task.");
 
     // do
     // {
@@ -176,7 +229,6 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     // } while(ci sono ancora tag prendibili da questo lato);
 
     // per ogni lato
-
 
     res.success = true;
     return true;
