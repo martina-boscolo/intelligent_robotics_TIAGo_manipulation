@@ -19,6 +19,8 @@
 #include "ir2425_group_08/RouteHandler.h"
 #include "ir2425_group_08/PlaceService.h"
 
+using NodeHandleShared = std::shared_ptr<ros::NodeHandle>;
+
 //Decent waypoints to scan tag with ID=10
 std::vector<geometry_msgs::Pose> target_poses = {
     // First pose
@@ -254,12 +256,13 @@ int main(int argc, char **argv)
 {
     // Initialize the ROS node
     ros::init(argc, argv, "node_a");
-    ros::NodeHandle nh;
+    auto nh = std::make_shared<ros::NodeHandle>();
+    NodeHandleShared nh_ptr(nh);
     
-    debug_marker_pub = nh.advertise<visualization_msgs::Marker>("debug_points", 10);
+    debug_marker_pub = nh->advertise<visualization_msgs::Marker>("debug_points", 10);
     
     // Create a service client to request Apriltag IDs
-    ros::ServiceClient client = nh.serviceClient<tiago_iaslab_simulation::Coeffs>("/straight_line_srv");
+    ros::ServiceClient client = nh->serviceClient<tiago_iaslab_simulation::Coeffs>("/straight_line_srv");
 
     // Create a service request and response object
     tiago_iaslab_simulation::Coeffs srv;
@@ -287,19 +290,19 @@ int main(int argc, char **argv)
     inclineHead(M_PI / 4);
 
     //moveToPoses(target_poses);
-    ir2425_group_08::RouteHandler rh;
+    ir2425_group_08::RouteHandler rh(nh_ptr);
     rh.followPoses(target_poses);
 
     int n = 3;
     // Generate and transform points
-    generatePointsInAprilTagFrame(m, q, n, nh);
+    generatePointsInAprilTagFrame(m, q, n, *nh);
 
     // Debug points
-    publishDebugPoints(global_points, nh);
+    publishDebugPoints(global_points, *nh);
 
     ir2425_group_08::PlaceService srv_place_goal;
 
-    ros::ServiceClient client_place_goal = nh.serviceClient<ir2425_group_08::PlaceService>("/place_goal", true);
+    ros::ServiceClient client_place_goal = nh->serviceClient<ir2425_group_08::PlaceService>("/place_goal", true);
     ros::service::waitForService("/place_goal");
     srv_place_goal.request.target_points = global_points;
     srv_place_goal.request.num_goals = n;

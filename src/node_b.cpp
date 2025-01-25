@@ -9,6 +9,8 @@
 #include "ir2425_group_08/PlaceService.h"
 #include "ir2425_group_08/PickAndPlaceAction.h"
 
+using NodeHandleShared = std::shared_ptr<ros::NodeHandle>;
+
 std::vector<geometry_msgs::Pose> target_poses = {
     // First pose
     []() {
@@ -97,7 +99,7 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id) {
     ir2425_group_08::PickAndPlaceGoal goal;
     goal.goal_pose = transformed_pose.pose;
     goal.id = id;
-    goal.target_point = PlaceServicePoints[PLACED_TAGS];
+    //goal.target_point = PlaceServicePoints[PLACED_TAGS];
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
     ac_ptr->sendGoal(goal);
     ROS_INFO("Waiting for result...");
@@ -128,7 +130,7 @@ bool scanForTags() {
 
             ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
 
-            if(isPoseWithinArmReachXY(transformed_pose)) {
+            if(true) { /*isPoseWithinArmReachXY(transformed_pose)*/
                 if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
                     foundTagIds.push_back(detection.id[0]);
                     
@@ -137,9 +139,9 @@ bool scanForTags() {
                     tagsFound = true;
                 }
             }
-        }
-        else {
-            ROS_INFO_STREAM("Apriltag " << detection.id[0] << " out of reach.");
+            else {
+                ROS_INFO_STREAM("Apriltag " << detection.id[0] << " out of reach.");
+            }
         }
     }
     ROS_INFO_STREAM("All reachable apriltags detected in this position sent. " << numPlaceServicePoints - PLACED_TAGS << " apriltags remain in order to complete the task.");
@@ -163,7 +165,8 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     //implement here the loop untill numPlaceServicePoints are placed, go to next anchor point, scan and send, repeat if needed
     if(PLACED_TAGS < numPlaceServicePoints) {
         // Set up the done callback before following poses
-        rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
+        //rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
+        rh_ptr->goFrontPick(poseReachedCallback);
     }
 
     res.success = true;
@@ -172,13 +175,14 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "node_b");
-    ros::NodeHandle nh;
-    nh_ptr = &nh;
+    auto nh = std::make_shared<ros::NodeHandle>();
+    NodeHandleShared nh_ptr_shared(nh);
+    nh_ptr = nh.get();
 
-    ros::ServiceServer server = nh.advertiseService(NODE_A_SRV, handlePlaceService);
+    ros::ServiceServer server = nh->advertiseService(NODE_A_SRV, handlePlaceService);
     ROS_INFO("Node B is ready to handle place_goal service.");
 
-    ir2425_group_08::RouteHandler rh;
+    ir2425_group_08::RouteHandler rh(nh_ptr_shared);
     rh_ptr = &rh;
 
     actionlib::SimpleActionClient<ir2425_group_08::PickAndPlaceAction> ac("/pick_and_place", true);

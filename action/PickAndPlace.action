@@ -1,7 +1,7 @@
 # goal
 geometry_msgs/Pose goal_pose
 int32 id
-geometry_msgs/Point target_point
+# geometry_msgs/Point target_point
 
 ---
 # result
