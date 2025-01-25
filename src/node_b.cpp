@@ -97,6 +97,7 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id) {
     ir2425_group_08::PickAndPlaceGoal goal;
     goal.goal_pose = transformed_pose.pose;
     goal.id = id;
+    goal.target_point = PlaceServicePoints[PLACED_TAGS];
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
     ac_ptr->sendGoal(goal);
     ROS_INFO("Waiting for result...");
