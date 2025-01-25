@@ -132,7 +132,7 @@ bool scanForTags() {
                 if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
                     foundTagIds.push_back(detection.id[0]);
                     
-                    sendGoalTag(transformed_pose, detection.id[0])
+                    sendGoalTag(transformed_pose, detection.id[0]);
 
                     tagsFound = true;
                 }
