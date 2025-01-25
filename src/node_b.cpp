@@ -169,6 +169,15 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
         rh_ptr->goFrontPick(poseReachedCallback);
     }
 
+    // do
+    // {
+    //     mi muovo in questo lato usando RouteHandler => passo findTags()
+    //     salvo in findTags() tutti i tag che ho visto in un vettore apposito per questo lato del tavolo (vedi while)
+    // } while(ci sono ancora tag prendibili da questo lato);
+
+    // per ogni lato
+
+
     res.success = true;
     return true;
 }

@@ -63,6 +63,8 @@ namespace ir2425_group_08
 
         bool fullPickRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
         bool goFrontPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        bool goAsidePick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        bool goBackPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
 
         //bool isRobotMoving() const { return is_robot_moving_; }
     };
