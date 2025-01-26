@@ -26,18 +26,11 @@ namespace ir2425_group_08
         NodeHandleShared nh_ptr_;
 
         ros::Publisher cmd_vel_pub_;
-        actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac_;
         tf::TransformListener tf_listener_;
-        
-        //std::vector<geometry_msgs::Pose> current_poses_;
-        //size_t current_pose_index_;
-        //boost::function<void(const actionlib::SimpleClientGoalState&)> done_callback_;
 
         std::vector<geometry_msgs::Pose> tablesWaypoints_;
         size_t currentWaypointIndex_;
         float waypointTolerance_;
-
-        //void sendNextPose();
     private:
         static std::vector<geometry_msgs::Pose> initTablesWaypoints();
 
@@ -51,14 +44,16 @@ namespace ir2425_group_08
         void goToWaypoint(size_t index, boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
     public:
         RouteHandler(NodeHandleShared& nh_ptr);
-        bool followPoses(std::vector<geometry_msgs::Pose> poses);
-        //void followPosesAsync(std::vector<geometry_msgs::Pose> poses, boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
 
         bool fullPickRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        bool fullPlaceRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+
         bool goFrontPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
         bool goAsidePick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
         bool goBackPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
         bool goFrontPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        bool goAsidePlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        bool goBackPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
 
         size_t getCurrentWaypointIndex();
         void setCurrentWaypointIndex(size_t new_index);

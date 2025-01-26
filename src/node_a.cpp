@@ -16,7 +16,6 @@
 #include <math.h>
 #include <vector>
 
-#include "ir2425_group_08/RouteHandler.h"
 #include "ir2425_group_08/PlaceService.h"
 
 using NodeHandleShared = std::shared_ptr<ros::NodeHandle>;
@@ -311,8 +310,6 @@ int main(int argc, char **argv)
     inclineHead(M_PI / 4);
 
     moveToPoses(target_poses);
-    //ir2425_group_08::RouteHandler rh(nh_ptr);
-    //rh.followPoses(target_poses);
 
     int n = 3;
     // Generate and transform points

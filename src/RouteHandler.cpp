@@ -1,14 +1,5 @@
 #include "ir2425_group_08/RouteHandler.h"
 
-/*
-waypoints
-aside pick_table: [ INFO] [1737714488.320085439, 6613.189000000]: Setting goal: Frame:map, Position(8.007, -3.846, 0.000), Orientation(0.000, 0.000, 0.686, 0.728) = Angle: 1.511
-back pick_table: [ INFO] [1737719711.942532671, 6459.648000000]: Setting goal: Frame:map, Position(6.761, -2.793, 0.000), Orientation(0.000, 0.000, -0.011, 1.000) = Angle: -0.023
-
-middle point f-a: [ INFO] [1737756393.025888166, 6652.027000000]: Setting goal: Frame:map, Position(8.921, -3.939, 0.000), Orientation(0.000, 0.000, 1.000, 0.010) = Angle: 3.121
-middle point a-b: [ INFO] [1737756453.802653619, 6692.130000000]: Setting goal: Frame:map, Position(7.121, -4.108, 0.000), Orientation(0.000, 0.000, 0.713, 0.701) = Angle: 1.587
-*/
-
 namespace ir2425_group_08
 {
     // static private
@@ -64,7 +55,7 @@ namespace ir2425_group_08
             []() { // front pick
                 geometry_msgs::Pose pose;
                 pose.position.x = 8.807;
-                pose.position.y = -2.777;
+                pose.position.y = -2.877; // -0.10
                 pose.position.z = 0.0;
                 pose.orientation.x = 0.0;
                 pose.orientation.y = 0.0;
@@ -74,13 +65,57 @@ namespace ir2425_group_08
             }(),
             []() { // front place
                 geometry_msgs::Pose pose;
-                pose.position.x = 8.828;
-                pose.position.y = -1.972;
+                pose.position.x = 8.528; // -0.20
+                pose.position.y = -1.822; // +0.15
                 pose.position.z = 0.0;
                 pose.orientation.x = 0.0;
                 pose.orientation.y = 0.0;
                 pose.orientation.z = -1.0;
                 pose.orientation.w = 0.0;
+                return pose;
+            }(),
+            []() { // middle point f-a place
+                geometry_msgs::Pose pose;
+                pose.position.x = 8.719;
+                pose.position.y = -1.053;
+                pose.position.z = 0.0;
+                pose.orientation.x = 0.0;
+                pose.orientation.y = 0.0;
+                pose.orientation.z = 1.0;
+                pose.orientation.w = 0.016;
+                return pose;
+            }(),
+            []() { // aside place
+                geometry_msgs::Pose pose;
+                pose.position.x = 7.876;
+                pose.position.y = -1.162;
+                pose.position.z = 0.0;
+                pose.orientation.x = 0.0;
+                pose.orientation.y = 0.0;
+                pose.orientation.z = -0.701;
+                pose.orientation.w = 0.713;
+                return pose;
+            }(),
+            []() { // middle point a-b place
+                geometry_msgs::Pose pose;
+                pose.position.x = 6.819;
+                pose.position.y = -0.954;
+                pose.position.z = 0.0;
+                pose.orientation.x = 0.0;
+                pose.orientation.y = 0.0;
+                pose.orientation.z = 1.0;
+                pose.orientation.w = 0.010;
+                return pose;
+            }(),
+            []() { // back place
+                geometry_msgs::Pose pose;
+                pose.position.x = 6.984;
+                pose.position.y = -1.940;
+                pose.position.z = 0.0;
+                pose.orientation.x = 0.0;
+                pose.orientation.y = 0.0;
+                pose.orientation.z = 0.008;
+                pose.orientation.w = 1.0;
                 return pose;
             }()
         };
@@ -90,67 +125,15 @@ namespace ir2425_group_08
     RouteHandler::RouteHandler(NodeHandleShared& nh_ptr) 
     :
     nh_ptr_(nh_ptr),
-    ac_("/move_base", true),
     tablesWaypoints_(initTablesWaypoints()),
     currentWaypointIndex_(5), // assuming the robot starts in front place
     waypointTolerance_(0.01)
     {
         this->cmd_vel_pub_ = this->nh_ptr_->advertise<geometry_msgs::Twist>("mobile_base_controller/cmd_vel", 10);
-
-        this->ac_.waitForServer();
-        ROS_INFO_STREAM("move_base server online!");
+        ROS_INFO_STREAM("Publisher on mobile_base_controller/cmd_vel ready!");
     }
 
     // public
-    bool RouteHandler::followPoses(std::vector<geometry_msgs::Pose> poses)
-    {
-        for (size_t i = 0; i < poses.size(); ++i)
-        {
-            // Define the goal pose
-            move_base_msgs::MoveBaseGoal goal;
-            goal.target_pose.header.frame_id = "map"; // Target frame
-            goal.target_pose.header.stamp = ros::Time::now();
-            goal.target_pose.pose = poses[i];        // Set the pose from the vector
-
-            // Log and send the goal
-            ROS_INFO("Sending goal %lu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
-                    i + 1,
-                    poses[i].position.x, poses[i].position.y, poses[i].position.z,
-                    poses[i].orientation.x, poses[i].orientation.y, poses[i].orientation.z, poses[i].orientation.w);
-            this->ac_.sendGoal(goal);
-
-            // Wait for the result
-            bool success = this->ac_.waitForResult(ros::Duration(30.0)); // Timeout after 30 seconds
-            if (success && this->ac_.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-            {
-                ROS_INFO("Successfully reached goal %lu!", i + 1);
-            }
-            else
-            {
-                ROS_WARN("Failed to reach goal %lu. Aborting remaining goals.", i + 1);
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    // void RouteHandler::followPosesAsync(
-    //     std::vector<geometry_msgs::Pose> poses,
-    //     boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
-    // {
-    //     if (poses.empty()) {
-    //         ROS_WARN("No poses provided for followPosesAsync");
-    //         return;
-    //     }
-
-    //     current_poses_ = poses;
-    //     current_pose_index_ = 0;
-    //     done_callback_ = done_cb;
-
-    //     // Start following the first pose
-    //     sendNextPose();
-    // }
 
     bool RouteHandler::fullPickRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
     {
@@ -159,12 +142,6 @@ namespace ir2425_group_08
             ROS_WARN("fullPickRotation is a test function. Please assure the robot starts in front place table waypoint");
             return false;
         }
-
-        // ROS_INFO_STREAM("Waypoints: ");
-        // for (auto waypoint : tablesWaypoints_) 
-        // {
-        //     ROS_INFO_STREAM(waypoint);
-        // }
 
         auto last_cb = done_cb;
         if (!done_cb)
@@ -175,6 +152,27 @@ namespace ir2425_group_08
         goToWaypoint(0, [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ });
 
         goToWaypoint(4, last_cb);
+
+        return true;
+    }
+
+    bool RouteHandler::fullPlaceRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    {
+        if (currentWaypointIndex_ != 5)
+        {
+            ROS_WARN("fullPickRotation is a test function. Please assure the robot starts in front place table waypoint");
+            return false;
+        }
+
+        auto last_cb = done_cb;
+        if (!done_cb)
+        {
+            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
+        }
+
+        goToWaypoint(9, [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ });
+
+        goToWaypoint(5, last_cb);
 
         return true;
     }
@@ -231,6 +229,32 @@ namespace ir2425_group_08
         return true;
     }
 
+    bool RouteHandler::goAsidePlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    {
+        auto last_cb = done_cb;
+        if (!done_cb)
+        {
+            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
+        }
+
+        goToWaypoint(7, last_cb);
+
+        return true;
+    }
+
+    bool RouteHandler::goBackPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    {
+        auto last_cb = done_cb;
+        if (!done_cb)
+        {
+            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
+        }
+
+        goToWaypoint(9, last_cb);
+
+        return true;
+    }
+
     size_t RouteHandler::getCurrentWaypointIndex()
     {
         return this->currentWaypointIndex_;
@@ -242,50 +266,6 @@ namespace ir2425_group_08
     }
 
     // private
-
-    // void RouteHandler::sendNextPose()
-    // {
-    //     if (current_pose_index_ >= current_poses_.size()) {
-    //         // All poses completed successfully
-    //         if (done_callback_) {
-    //             done_callback_(actionlib::SimpleClientGoalState::SUCCEEDED);
-    //         }
-    //         return;
-    //     }
-
-    //     move_base_msgs::MoveBaseGoal goal;
-    //     goal.target_pose.header.frame_id = "map";
-    //     goal.target_pose.header.stamp = ros::Time::now();
-    //     goal.target_pose.pose = current_poses_[current_pose_index_];
-
-    //     ROS_INFO("Sending goal (waypoint) %zu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
-    //             current_pose_index_ + 1,
-    //             goal.target_pose.pose.position.x,
-    //             goal.target_pose.pose.position.y,
-    //             goal.target_pose.pose.position.z,
-    //             goal.target_pose.pose.orientation.x,
-    //             goal.target_pose.pose.orientation.y,
-    //             goal.target_pose.pose.orientation.z,
-    //             goal.target_pose.pose.orientation.w);
-
-    //     // Set up the callback for when this goal completes
-    //     actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>::SimpleDoneCallback cb =
-    //         [this](const actionlib::SimpleClientGoalState& state,
-    //               const move_base_msgs::MoveBaseResultConstPtr& result) {
-    //             if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
-    //                 ROS_INFO("Successfully reached goal %zu!", current_pose_index_ + 1);
-    //                 current_pose_index_++;
-    //                 sendNextPose();
-    //             } else {
-    //                 ROS_WARN("Failed to reach goal %zu. Aborting remaining goals.", current_pose_index_ + 1);
-    //                 if (done_callback_) {
-    //                     done_callback_(state);
-    //                 }
-    //             }
-    //         };
-
-    //     this->ac_.sendGoal(goal, cb);
-    // }
 
     size_t RouteHandler::getNextIndex(size_t targetIndex)
     {

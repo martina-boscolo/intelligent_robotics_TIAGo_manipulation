@@ -12,23 +12,8 @@
 
 using NodeHandleShared = std::shared_ptr<ros::NodeHandle>;
 
-std::vector<geometry_msgs::Pose> target_poses = {
-    // First pose
-    []() {
-        geometry_msgs::Pose pose;
-        pose.position.x = 8.807;
-        pose.position.y = -2.777;
-        pose.position.z = 0.0;
-        pose.orientation.x = 0.0;
-        pose.orientation.y = 0.0;
-        pose.orientation.z = 1.0;
-        pose.orientation.w = 0.009;
-        return pose;
-     }()
-};
-
 int placed_tags = 0;
-constexpr double TIAGO_ARM_MAX_REACH = 0.75;
+//constexpr double TIAGO_ARM_MAX_REACH = 0.75;
 std::vector<int> foundTagIds;
 bool tagsFound = true;
 
@@ -57,34 +42,34 @@ geometry_msgs::PoseStamped transformTagPose(const geometry_msgs::Pose& tag_pose,
 }
 
 
-bool isPoseWithinArmReachXY(const geometry_msgs::PoseStamped &target_pose_map, double max_reach = TIAGO_ARM_MAX_REACH)
-{
-    static tf::TransformListener tf_listener;
+// bool isPoseWithinArmReachXY(const geometry_msgs::PoseStamped &target_pose_map, double max_reach = TIAGO_ARM_MAX_REACH)
+// {
+//     static tf::TransformListener tf_listener;
 
-    try
-    {
-        tf::StampedTransform transform;
-        tf_listener.waitForTransform("base_link", "map", ros::Time(0), ros::Duration(2.0));
-        tf_listener.lookupTransform("base_link", "map", ros::Time(0), transform);
+//     try
+//     {
+//         tf::StampedTransform transform;
+//         tf_listener.waitForTransform("base_link", "map", ros::Time(0), ros::Duration(2.0));
+//         tf_listener.lookupTransform("base_link", "map", ros::Time(0), transform);
 
-        double robot_x = transform.getOrigin().x();
-        double robot_y = transform.getOrigin().y();
+//         double robot_x = transform.getOrigin().x();
+//         double robot_y = transform.getOrigin().y();
 
-        double target_x = target_pose_map.pose.position.x;
-        double target_y = target_pose_map.pose.position.y;
+//         double target_x = target_pose_map.pose.position.x;
+//         double target_y = target_pose_map.pose.position.y;
 
-        double distance_xy = std::sqrt(
-            std::pow(target_x - robot_x, 2) +
-            std::pow(target_y - robot_y, 2));
+//         double distance_xy = std::sqrt(
+//             std::pow(target_x - robot_x, 2) +
+//             std::pow(target_y - robot_y, 2));
 
-        return distance_xy <= max_reach;
-    }
-    catch (tf::TransformException &ex)
-    {
-        ROS_WARN("Failed to lookup transform from 'map' to 'base_link': %s", ex.what());
-        return false;
-    }
-}
+//         return distance_xy <= max_reach;
+//     }
+//     catch (tf::TransformException &ex)
+//     {
+//         ROS_WARN("Failed to lookup transform from 'map' to 'base_link': %s", ex.what());
+//         return false;
+//     }
+// }
 
 void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vector<ir2425_group_08::DetectedObj> objs ) {
     ir2425_group_08::PickAndPlaceGoal goal;
@@ -154,7 +139,6 @@ void scanForTags() {
         {
             if (detection.id[0] == objs[0].id)
             {
-                // add check for distance, if too far away don't consider it since it may be pickable from another side of the table
                 geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
                 foundTagIds.push_back(objs[0].id);
 
@@ -164,11 +148,9 @@ void scanForTags() {
     }
 }
 
-
-
 void poseReachedCallback(const actionlib::SimpleClientGoalState& state) {
     if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
-        scanForTags();  // Your tag scanning function
+        scanForTags();
     }
 }
 
@@ -184,7 +166,8 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
 
     while(tagsFound && placed_tags < numPlaceServicePoints)
     {
-        rh_ptr->goFrontPick(poseReachedCallback);
+        rh_ptr->goFrontPick(0);
+        scanForTags();
     }
     ROS_INFO_STREAM("All reachable apriltags detected from front sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
@@ -193,7 +176,8 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
 
     while(tagsFound && placed_tags < numPlaceServicePoints)
     {
-        rh_ptr->goAsidePick(poseReachedCallback);
+        rh_ptr->goAsidePick(0);
+        scanForTags();
     }
     ROS_INFO_STREAM("All reachable apriltags detected from aside sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
@@ -202,7 +186,8 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
 
     while(tagsFound && placed_tags < numPlaceServicePoints)
     {
-        rh_ptr->goBackPick(poseReachedCallback);
+        rh_ptr->goBackPick(0);
+        scanForTags();
     }
     ROS_INFO_STREAM("All reachable apriltags detected from back sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
