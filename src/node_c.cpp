@@ -290,6 +290,54 @@ bool goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
     }
 }
 
+geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal, bool& success )
+{
+    ROS_INFO_STREAM("Target point " << goal->target_point );
+    moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
+    move_group.setPoseReferenceFrame("map");
+    move_group.setPlanningTime(30.0);
+
+    // Define pre-grasp pose using the provided point
+    geometry_msgs::Pose pre_grasp_pose;
+
+    // Set the position using the provided point
+    pre_grasp_pose.position.x = goal->target_point.x;
+    pre_grasp_pose.position.y = goal->target_point.y;
+    pre_grasp_pose.position.z = goal->target_point.z + 0.3; // Offset to ensure pre-grasp height
+
+    // Set the orientation to ensure the gripper is pointing downward
+    tf::Quaternion final_quat;
+    double roll = 0.0;
+    double pitch = M_PI_2; // Pointing down
+    double yaw = 0.0;      // Yaw can be adjusted as needed
+    final_quat.setRPY(roll, pitch, yaw);
+
+    pre_grasp_pose.orientation.w = final_quat.w();
+    pre_grasp_pose.orientation.x = final_quat.x();
+    pre_grasp_pose.orientation.y = final_quat.y();
+    pre_grasp_pose.orientation.z = final_quat.z();
+
+    // Set the target pose in the MoveGroupInterface
+    move_group.setPoseTarget(pre_grasp_pose);
+
+    // Plan and execute the motion
+    moveit::planning_interface::MoveGroupInterface::Plan pre_grasp_plan;
+    if (move_group.plan(pre_grasp_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS)
+    {
+        ROS_INFO("Planning to pre-grasp pose successful. Executing...");
+        move_group.execute(pre_grasp_plan);
+        success = true;
+    }
+    else
+    {
+        ROS_ERROR("Planning to pre-grasp pose failed.");
+        success = false; // Set failure
+    }
+
+    return pre_grasp_pose;
+}
+
+
 
 bool controlGripper(actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> &gripper_client, const std::vector<double> &positions) {
     control_msgs::FollowJointTrajectoryGoal gripper_goal;
@@ -348,6 +396,7 @@ void setActionResult(bool success) {
 void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
     ROS_INFO_STREAM("Got tag " << goal->id << " with pose " << goal->goal_pose);
+    ROS_INFO_STREAM("Target point " << goal->target_point );
 
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
@@ -407,11 +456,10 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     //qua si deve muovere
     rh_ptr->goFrontPlace(0);
     ROS_INFO("Moving...");
-    //ros::Duration(40.5).sleep();
-    // Qua va cambiato e messo nella posiizione giusta 
     armInPregraspPosition();
-    // move_group.setPoseTarget(pre_grasp_pose);
+    // move_group.setPoseTarget(goal->target_point);
     // move_group.move();
+    goToPlace(goal, success);
 
     controlGripper(gripper_client, {0.05, 0.05});// Open gripper
     detachObjectFromRobot(goal);
