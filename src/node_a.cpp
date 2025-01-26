@@ -95,17 +95,34 @@ void generatePointsInAprilTagFrame(float m, float q, int n, ros::NodeHandle &nh)
         // Generate points in the AprilTag frame
         std::vector<geometry_msgs::PointStamped> apriltag_points;
         double step = 0.15; // Step size for points along the line
-        for (int i = 0; i < n; ++i)
+        if (m <= 1)
         {
-            geometry_msgs::PointStamped point_apriltag;
-            point_apriltag.header.frame_id = "tag_10";
-            point_apriltag.header.stamp = ros::Time(0);
+            for (int i = 0; i < n; ++i)
+            {
+                geometry_msgs::PointStamped point_apriltag;
+                point_apriltag.header.frame_id = "tag_10";
+                point_apriltag.header.stamp = ros::Time(0);
 
-            point_apriltag.point.x = i * step;        // Increment x
-            point_apriltag.point.y = m * (point_apriltag.point.x) + q; // y = mx + q
-            point_apriltag.point.z = 0.0;            // Flat plane in AprilTag frame
+                point_apriltag.point.x = i * step;        // Increment x
+                point_apriltag.point.y = m * (point_apriltag.point.x) + q; // y = mx + q
+                point_apriltag.point.z = 0.0;            // Flat plane in AprilTag frame
 
-            apriltag_points.push_back(point_apriltag);
+                apriltag_points.push_back(point_apriltag);
+            }
+        } else
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                geometry_msgs::PointStamped point_apriltag;
+                point_apriltag.header.frame_id = "tag_10";
+                point_apriltag.header.stamp = ros::Time(0);
+
+                point_apriltag.point.y = i * step + q; // y = mx + q
+                point_apriltag.point.x = (point_apriltag.point.y - q) / m;        // Increment x
+                point_apriltag.point.z = 0.0;            // Flat plane in AprilTag frame
+
+                apriltag_points.push_back(point_apriltag);
+            }
         }
 
         // Transform the points to the map frame
@@ -283,15 +300,19 @@ int main(int argc, char **argv)
     ROS_INFO("Received %lu target coefficents.", srv.response.coeffs.size());
     float m = srv.response.coeffs[0];
     float q = srv.response.coeffs[1];
+
+    // debug
+    m = 0.3;
+    q = 0.1;
     ROS_INFO("m = %f", m);
     ROS_INFO("q = %f", q);
 
     extendTorso();
     inclineHead(M_PI / 4);
 
-    //moveToPoses(target_poses);
-    ir2425_group_08::RouteHandler rh(nh_ptr);
-    rh.followPoses(target_poses);
+    moveToPoses(target_poses);
+    //ir2425_group_08::RouteHandler rh(nh_ptr);
+    //rh.followPoses(target_poses);
 
     int n = 3;
     // Generate and transform points

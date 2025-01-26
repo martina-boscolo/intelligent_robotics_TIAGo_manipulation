@@ -93,7 +93,14 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     goal.detectedObj = objs;
     goal.current_waypoint = rh_ptr->getCurrentWaypointIndex();
 
-    goal.target_point = PlaceServicePoints[placed_tags];
+    if (placed_tags < numPlaceServicePoints)
+    {
+        goal.target_point = PlaceServicePoints[placed_tags];
+    } else
+    {
+        goal.target_point = PlaceServicePoints[numPlaceServicePoints--];
+        ROS_ERROR("TRYING TO PLACE TOO MANY OBJECTS!!! Something weird happened...");
+    }
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
     ac_ptr->sendGoal(goal);
     ROS_INFO("Waiting for result...");
@@ -173,24 +180,27 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
 
     ROS_INFO("Moving front...");
     tagsFound = true;
+    foundTagIds.clear();
 
-    while(tagsFound) // && placed_tags < numPlaceServicePoints
+    while(tagsFound && placed_tags < numPlaceServicePoints)
     {
         rh_ptr->goFrontPick(poseReachedCallback);
     }
     ROS_INFO_STREAM("All reachable apriltags detected from front sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
     tagsFound = true;
+    foundTagIds.clear();
 
-    while(tagsFound) // && placed_tags < numPlaceServicePoints
+    while(tagsFound && placed_tags < numPlaceServicePoints)
     {
         rh_ptr->goAsidePick(poseReachedCallback);
     }
     ROS_INFO_STREAM("All reachable apriltags detected from aside sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
     tagsFound = true;
+    foundTagIds.clear();
 
-    while(tagsFound) // && placed_tags < numPlaceServicePoints
+    while(tagsFound && placed_tags < numPlaceServicePoints)
     {
         rh_ptr->goBackPick(poseReachedCallback);
     }
