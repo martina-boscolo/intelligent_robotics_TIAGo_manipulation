@@ -312,7 +312,7 @@ int main(int argc, char **argv)
 
     moveToPoses(target_poses);
 
-    int n = 3;
+    int n = 6;
     // Generate and transform points
     generatePointsInAprilTagFrame(m, q, n, *nh);
 

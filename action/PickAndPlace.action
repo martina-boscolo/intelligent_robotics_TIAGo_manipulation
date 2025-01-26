@@ -1,7 +1,7 @@
 # goal
-geometry_msgs/Pose goal_pose
 int32 id
-geometry_msgs/Point target_point
+geometry_msgs/Pose goal_pose
+geometry_msgs/Point[] target_points
 DetectedObj[] detectedObj
 uint32 current_waypoint
 
@@ -9,6 +9,7 @@ uint32 current_waypoint
 # result
 bool success
 uint32 new_current_waypoint
+uint32 selected_target_index
 
 ---
 # feedback

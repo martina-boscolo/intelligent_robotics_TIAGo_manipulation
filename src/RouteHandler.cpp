@@ -65,7 +65,7 @@ namespace ir2425_group_08
             }(),
             []() { // front place
                 geometry_msgs::Pose pose;
-                pose.position.x = 8.528; // -0.20
+                pose.position.x = 8.578; // -0.15
                 pose.position.y = -1.822; // +0.15
                 pose.position.z = 0.0;
                 pose.orientation.x = 0.0;

@@ -18,7 +18,7 @@ std::vector<int> foundTagIds;
 bool tagsFound = true;
 
 std::string NODE_A_SRV = "/place_goal";
-std::vector<geometry_msgs::Point> PlaceServicePoints;
+std::vector<geometry_msgs::Point> placeServicePoints;
 int numPlaceServicePoints;
 
 ir2425_group_08::RouteHandler* rh_ptr;
@@ -78,14 +78,15 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     goal.detectedObj = objs;
     goal.current_waypoint = rh_ptr->getCurrentWaypointIndex();
 
-    if (placed_tags < numPlaceServicePoints)
-    {
-        goal.target_point = PlaceServicePoints[placed_tags];
-    } else
-    {
-        goal.target_point = PlaceServicePoints[numPlaceServicePoints--];
-        ROS_ERROR("TRYING TO PLACE TOO MANY OBJECTS!!! Something weird happened...");
-    }
+    // if (placed_tags < numPlaceServicePoints)
+    // {
+    //     goal.target_point = PlaceServicePoints[placed_tags];
+    // } else
+    // {
+    //     goal.target_point = PlaceServicePoints[numPlaceServicePoints--];
+    //     ROS_ERROR("TRYING TO PLACE TOO MANY OBJECTS!!! Something weird happened...");
+    // }
+    goal.target_points = placeServicePoints;
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
     ac_ptr->sendGoal(goal);
     ROS_INFO("Waiting for result...");
@@ -94,6 +95,7 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     if (actionResult->success) {
         ROS_INFO_STREAM("Apriltag " << id << " placed on the 'place table'.");
         placed_tags++;
+        placeServicePoints.erase(placeServicePoints.begin() + actionResult->selected_target_index);
     }
     else {
         ROS_INFO("Action failed."); 
@@ -157,7 +159,7 @@ void poseReachedCallback(const actionlib::SimpleClientGoalState& state) {
 bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_group_08::PlaceService::Response &res) {
     ROS_INFO_STREAM("Received " << req.num_goals << " goals for pick and place");
 
-    PlaceServicePoints = req.target_points;
+    placeServicePoints = req.target_points;
     numPlaceServicePoints = req.num_goals;
 
     ROS_INFO("Moving front...");
