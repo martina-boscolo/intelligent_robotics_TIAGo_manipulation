@@ -37,8 +37,8 @@ std::vector<geometry_msgs::Pose> target_poses = {
     // }()
 };
 
-int PLACED_TAGS = 0;
-constexpr double TIAGO_ARM_MAX_REACH = 0.70;
+int placed_tags = 0;
+constexpr double TIAGO_ARM_MAX_REACH = 0.75;
 std::vector<int> foundTagIds;
 bool tagsFound = true;
 
@@ -96,18 +96,27 @@ bool isPoseWithinArmReachXY(const geometry_msgs::PoseStamped &target_pose_map, d
     }
 }
 
-void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id) {
+void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vector<int> new_ids, std::vector<geometry_msgs::PoseStamped> new_collision_objects_poses) {
     ir2425_group_08::PickAndPlaceGoal goal;
     goal.goal_pose = transformed_pose.pose;
     goal.id = id;
-    //goal.target_point = PlaceServicePoints[PLACED_TAGS];
+    goal.new_ids = new_ids;
+    std::vector<geometry_msgs::Pose> converted_poses;
+    for (const auto &pose_stamped : new_collision_objects_poses)
+    {
+        converted_poses.push_back(pose_stamped.pose);
+    }
+
+    goal.new_collision_objects_poses = converted_poses;
+
+    //goal.target_point = PlaceServicePoints[placed_tags];
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
     ac_ptr->sendGoal(goal);
     ROS_INFO("Waiting for result...");
     bool finished_before_timeout = ac_ptr->waitForResult(ros::Duration(90.0)); //might need more time
     if (finished_before_timeout) {
         ROS_INFO_STREAM("Apriltag " << id << " placed on the 'place table'.");
-        PLACED_TAGS++;
+        placed_tags++;
     }
     else {
         ROS_INFO("Action did not finish before the time out."); // maybe wait for node c to reset
@@ -125,7 +134,7 @@ void scanForTags() {
     }
 
     // for (const auto& detection : msg->detections) {
-    //     if (!(detection.id[0] == 10) && PLACED_TAGS < numPlaceServicePoints) {
+    //     if (!(detection.id[0] == 10) && placed_tags < numPlaceServicePoints) {
     //         geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
 
     //         ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
@@ -146,11 +155,13 @@ void scanForTags() {
     // }
 
     std::vector<int> new_ids; // potentially valid tags
+    std::vector<geometry_msgs::PoseStamped> new_collision_objects_poses;
     for (const auto& detection : msg->detections)
     {
         if (!(detection.id[0] == 10) && std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end())
         {
             new_ids.push_back(detection.id[0]);
+            new_collision_objects_poses.push_back(transformTagPose(detection.pose.pose.pose, detection. pose.header.frame_id));
         }
     }
 
@@ -166,10 +177,11 @@ void scanForTags() {
         {
             if (detection.id[0] == new_ids[0])
             {
+                // add check for distance, if too far away don't consider it since it may be pickable from another side of the table
                 geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
                 foundTagIds.push_back(new_ids[0]);
 
-                sendGoalTag(transformed_pose, new_ids[0]);
+                sendGoalTag(transformed_pose, new_ids[0], new_ids, new_collision_objects_poses);
             }
         }
     }
@@ -190,7 +202,7 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     numPlaceServicePoints = req.num_goals;
 
     //implement here the loop untill numPlaceServicePoints are placed, go to next anchor point, scan and send, repeat if needed
-    // if(PLACED_TAGS < numPlaceServicePoints) {
+    // if(placed_tags < numPlaceServicePoints) {
     //     // Set up the done callback before following poses
     //     //rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
     //     rh_ptr->goFrontPick(poseReachedCallback);
@@ -199,27 +211,27 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     ROS_INFO("Moving front...");
     tagsFound = true;
 
-    while(tagsFound) // && PLACED_TAGS < numPlaceServicePoints
+    while(tagsFound) // && placed_tags < numPlaceServicePoints
     {
         rh_ptr->goFrontPick(poseReachedCallback);
     }
-    ROS_INFO_STREAM("All reachable apriltags detected from front sent. " << numPlaceServicePoints - PLACED_TAGS 
+    ROS_INFO_STREAM("All reachable apriltags detected from front sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
     tagsFound = true;
 
-    while(tagsFound) // && PLACED_TAGS < numPlaceServicePoints
+    while(tagsFound) // && placed_tags < numPlaceServicePoints
     {
         rh_ptr->goAsidePick(poseReachedCallback);
     }
-    ROS_INFO_STREAM("All reachable apriltags detected from aside sent. " << numPlaceServicePoints - PLACED_TAGS 
+    ROS_INFO_STREAM("All reachable apriltags detected from aside sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
     tagsFound = true;
 
-    while(tagsFound) // && PLACED_TAGS < numPlaceServicePoints
+    while(tagsFound) // && placed_tags < numPlaceServicePoints
     {
         rh_ptr->goBackPick(poseReachedCallback);
     }
-    ROS_INFO_STREAM("All reachable apriltags detected from back sent. " << numPlaceServicePoints - PLACED_TAGS 
+    ROS_INFO_STREAM("All reachable apriltags detected from back sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
 
     // do

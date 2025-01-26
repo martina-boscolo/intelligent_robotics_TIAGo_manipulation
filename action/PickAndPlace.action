@@ -1,7 +1,9 @@
 # goal
 geometry_msgs/Pose goal_pose
 int32 id
-# geometry_msgs/Point target_point
+#geometry_msgs/Point target_point
+int32[] new_ids
+geometry_msgs/Pose[] new_collision_objects_poses
 
 ---
 # result
