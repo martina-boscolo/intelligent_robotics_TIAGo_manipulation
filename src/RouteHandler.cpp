@@ -93,7 +93,7 @@ namespace ir2425_group_08
     ac_("/move_base", true),
     tablesWaypoints_(initTablesWaypoints()),
     currentWaypointIndex_(5), // assuming the robot starts in front place
-    waypointTolerance_(0.001)
+    waypointTolerance_(0.01)
     {
         this->cmd_vel_pub_ = this->nh_ptr_->advertise<geometry_msgs::Twist>("mobile_base_controller/cmd_vel", 10);
 
@@ -229,6 +229,16 @@ namespace ir2425_group_08
         goToWaypoint(5, last_cb);
 
         return true;
+    }
+
+    size_t RouteHandler::getCurrentWaypointIndex()
+    {
+        return this->currentWaypointIndex_;
+    }
+
+    void RouteHandler::setCurrentWaypointIndex(size_t new_index)
+    {
+        currentWaypointIndex_ = new_index;
     }
 
     // private
@@ -452,7 +462,7 @@ namespace ir2425_group_08
             return;
         }
 
-        ROS_INFO_STREAM("Target index: " << index);
+        ROS_INFO_STREAM("Target index: " << index << ", Current index: " << currentWaypointIndex_);
         size_t nextIndex;
         while (currentWaypointIndex_ != index)
         {

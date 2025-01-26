@@ -59,6 +59,9 @@ namespace ir2425_group_08
         bool goAsidePick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
         bool goBackPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
         bool goFrontPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+
+        size_t getCurrentWaypointIndex();
+        void setCurrentWaypointIndex(size_t new_index);
     };
 }
 

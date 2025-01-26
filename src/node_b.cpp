@@ -24,18 +24,7 @@ std::vector<geometry_msgs::Pose> target_poses = {
         pose.orientation.z = 1.0;
         pose.orientation.w = 0.009;
         return pose;
-     }(),
-    // []() {
-    //     geometry_msgs::Pose pose;
-    //     pose.position.x = 8.828;
-    //     pose.position.y = -1.972;
-    //     pose.position.z = 0.0;
-    //     pose.orientation.x = 0.0;
-    //     pose.orientation.y = 0.0;
-    //     pose.orientation.z = -1.0;
-    //     pose.orientation.w = 0.0;
-    //     return pose;
-    // }()
+     }()
 };
 
 int placed_tags = 0;
@@ -102,21 +91,17 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     goal.goal_pose = transformed_pose.pose;
     goal.id = id;
     goal.detectedObj = objs;
-    // std::vector<geometry_msgs::Pose> converted_poses;
-    // for (const auto &pose_stamped : new_collision_objects_poses)
-    // {
-    //     converted_poses.push_back(pose_stamped.pose);
-    // }
+    goal.current_waypoint = rh_ptr->getCurrentWaypointIndex();
 
-    // goal.new_collision_objects_poses = converted_poses;
-
-    //goal.target_point = PlaceServicePoints[placed_tags];
+    goal.target_point = PlaceServicePoints[placed_tags];
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
     ac_ptr->sendGoal(goal);
     ROS_INFO("Waiting for result...");
-    bool finished_before_timeout = ac_ptr->waitForResult(ros::Duration(90.0)); //might need more time
-    if (finished_before_timeout) {
+    ac_ptr->waitForResult();
+    auto actionResult = ac_ptr->getResult();
+    if (actionResult->success) {
         ROS_INFO_STREAM("Apriltag " << id << " placed on the 'place table'.");
+        rh_ptr->setCurrentWaypointIndex(actionResult->new_current_waypoint);
         placed_tags++;
     }
     else {
@@ -133,27 +118,6 @@ void scanForTags() {
         ROS_WARN("No AprilTag detections received within timeout");
         return;
     }
-
-    // for (const auto& detection : msg->detections) {
-    //     if (!(detection.id[0] == 10) && placed_tags < numPlaceServicePoints) {
-    //         geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
-
-    //         ROS_INFO_STREAM("Found apriltag " << detection.id[0]);
-
-    //         if(true) { /*isPoseWithinArmReachXY(transformed_pose)*/
-    //             if (std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end()){
-    //                 foundTagIds.push_back(detection.id[0]);
-                    
-    //                 sendGoalTag(transformed_pose, detection.id[0]);
-
-    //                 tagsFound = true;
-    //             }
-    //         }
-    //         else {
-    //             ROS_INFO_STREAM("Apriltag " << detection.id[0] << " out of reach.");
-    //         }
-    //     }
-    // }
 
     std::vector<ir2425_group_08::DetectedObj> objs;
 
@@ -207,13 +171,6 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     PlaceServicePoints = req.target_points;
     numPlaceServicePoints = req.num_goals;
 
-    //implement here the loop untill numPlaceServicePoints are placed, go to next anchor point, scan and send, repeat if needed
-    // if(placed_tags < numPlaceServicePoints) {
-    //     // Set up the done callback before following poses
-    //     //rh_ptr->followPosesAsync(target_poses, poseReachedCallback);
-    //     rh_ptr->goFrontPick(poseReachedCallback);
-    // }
-
     ROS_INFO("Moving front...");
     tagsFound = true;
 
@@ -239,14 +196,7 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
     }
     ROS_INFO_STREAM("All reachable apriltags detected from back sent. " << numPlaceServicePoints - placed_tags 
         << " apriltags remain in order to complete the task.");
-
-    // do
-    // {
-    //     mi muovo in questo lato usando RouteHandler => passo findTags()
-    //     salvo in findTags() tutti i tag che ho visto in un vettore apposito per questo lato del tavolo (vedi while)
-    // } while(ci sono ancora tag prendibili da questo lato);
-
-    // per ogni lato
+    ROS_INFO_STREAM("IT'S OVER, PLACED " << placed_tags << " APRILTAGS");
 
     res.success = true;
     return true;

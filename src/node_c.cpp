@@ -341,6 +341,7 @@ void detachObjectFromRobot(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal
 void setActionResult(bool success) {
     ir2425_group_08::PickAndPlaceResult result;
     result.success = success;
+    result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
     as_ptr->setSucceeded(result);
 }
 
@@ -355,6 +356,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     move_group.setPlanningTime(30.0);
     gripper_group.setPoseReferenceFrame("map");
     gripper_group.setPlanningTime(10.0);
+    rh_ptr->setCurrentWaypointIndex(goal->current_waypoint);
   
     armInSafePosition();
     ros::Duration(1.0).sleep();
@@ -371,6 +373,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
         armInSafePosition();
         ir2425_group_08::PickAndPlaceResult result;
         result.success = false;
+        result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
         as_ptr->setAborted(result);
         return;
     }
@@ -386,6 +389,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
         armInSafePosition();
         ir2425_group_08::PickAndPlaceResult result;
         result.success = false;
+        result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
         as_ptr->setAborted(result);
         return;
     }
@@ -403,7 +407,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     //qua si deve muovere
     rh_ptr->goFrontPlace(0);
     ROS_INFO("Moving...");
-    ros::Duration(40.5).sleep();
+    //ros::Duration(40.5).sleep();
     // Qua va cambiato e messo nella posiizione giusta 
     armInPregraspPosition();
     // move_group.setPoseTarget(pre_grasp_pose);
