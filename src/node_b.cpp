@@ -8,6 +8,7 @@
 #include "ir2425_group_08/RouteHandler.h"
 #include "ir2425_group_08/PlaceService.h"
 #include "ir2425_group_08/PickAndPlaceAction.h"
+#include <ir2425_group_08/DetectedObj.h>
 
 using NodeHandleShared = std::shared_ptr<ros::NodeHandle>;
 
@@ -96,18 +97,18 @@ bool isPoseWithinArmReachXY(const geometry_msgs::PoseStamped &target_pose_map, d
     }
 }
 
-void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vector<int> new_ids, std::vector<geometry_msgs::PoseStamped> new_collision_objects_poses) {
+void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vector<ir2425_group_08::DetectedObj> objs ) {
     ir2425_group_08::PickAndPlaceGoal goal;
     goal.goal_pose = transformed_pose.pose;
     goal.id = id;
-    goal.new_ids = new_ids;
-    std::vector<geometry_msgs::Pose> converted_poses;
-    for (const auto &pose_stamped : new_collision_objects_poses)
-    {
-        converted_poses.push_back(pose_stamped.pose);
-    }
+    goal.detectedObj = objs;
+    // std::vector<geometry_msgs::Pose> converted_poses;
+    // for (const auto &pose_stamped : new_collision_objects_poses)
+    // {
+    //     converted_poses.push_back(pose_stamped.pose);
+    // }
 
-    goal.new_collision_objects_poses = converted_poses;
+    // goal.new_collision_objects_poses = converted_poses;
 
     //goal.target_point = PlaceServicePoints[placed_tags];
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
@@ -154,34 +155,39 @@ void scanForTags() {
     //     }
     // }
 
+    std::vector<ir2425_group_08::DetectedObj> objs;
+
     std::vector<int> new_ids; // potentially valid tags
     std::vector<geometry_msgs::PoseStamped> new_collision_objects_poses;
+
+
     for (const auto& detection : msg->detections)
     {
         if (!(detection.id[0] == 10) && std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end())
         {
-            new_ids.push_back(detection.id[0]);
-            new_collision_objects_poses.push_back(transformTagPose(detection.pose.pose.pose, detection. pose.header.frame_id));
+            ir2425_group_08::DetectedObj obj;
+            obj.id = detection.id[0];
+            obj.pose =transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id).pose;
+            objs.push_back(obj);
         }
     }
-
-    if (new_ids.empty())
+    if (objs.empty())
     {
         tagsFound = false;
         ROS_INFO("No valid tags found in this scan");
     } else 
     {
-        ROS_INFO_STREAM("Found apriltag " << new_ids[0]);
+        ROS_INFO_STREAM("Found apriltag " << objs[0].id);
 
         for (auto detection : msg->detections)
         {
-            if (detection.id[0] == new_ids[0])
+            if (detection.id[0] == objs[0].id)
             {
                 // add check for distance, if too far away don't consider it since it may be pickable from another side of the table
                 geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
-                foundTagIds.push_back(new_ids[0]);
+                foundTagIds.push_back(objs[0].id);
 
-                sendGoalTag(transformed_pose, new_ids[0], new_ids, new_collision_objects_poses);
+                sendGoalTag(transformed_pose, objs[0].id, objs);
             }
         }
     }
