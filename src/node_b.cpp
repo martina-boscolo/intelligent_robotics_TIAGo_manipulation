@@ -93,12 +93,12 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     auto actionResult = ac_ptr->getResult();
     if (actionResult->success) {
         ROS_INFO_STREAM("Apriltag " << id << " placed on the 'place table'.");
-        rh_ptr->setCurrentWaypointIndex(actionResult->new_current_waypoint);
         placed_tags++;
     }
     else {
-        ROS_INFO("Action did not finish before the time out."); // maybe wait for node c to reset
+        ROS_INFO("Action failed."); 
     }
+    rh_ptr->setCurrentWaypointIndex(actionResult->new_current_waypoint);
 }
 
 void scanForTags() {

@@ -96,48 +96,55 @@ void armInPregraspPosition()
         ROS_ERROR("Arm over the table position failed.");
     }
 }
-
-//aggiungere il for per creare tutti i collision object ( il goal deve cambiare)
-void addCollisionObject(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal )
+void addCollisionObject(const int id, const geometry_msgs::Pose pose )
 {
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-     for (const auto& o : goal->detectedObj)
-     {   // Cycle through all detected objects
 
     moveit_msgs::CollisionObject obj;
     obj.header.frame_id = "map";
-    obj.id = std::to_string(o.id);
-//TODO: TUTTI GLI OGGETTI DEVONO ESSERE SPOSTATI DI METÀ ALTEZZA ALTRIMENTI SONO CREATI CON L'APRILTAG AL CENTRO
+    obj.id = std::to_string(id);
+
     geometry_msgs::Pose obj_pose;
-    obj_pose.position.x = o.pose.position.x;
-    obj_pose.position.y = o.pose.position.y;
-    obj_pose.position.z = o.pose.position.z;
-    obj_pose.orientation = o.pose.orientation;
+    obj_pose.position.x = pose.position.x;
+    obj_pose.position.y = pose.position.y;
+    obj_pose.position.z = pose.position.z;
+    obj_pose.orientation = pose.orientation;
 
     shape_msgs::SolidPrimitive obj_shape;
 
-    if (o.id < 1 || o.id > 9){
-        ROS_ERROR("ERROR  | Object with id %d not supported", o.id);
+    if (id < 1 || id > 9){
+        ROS_ERROR("ERROR  | Object with id %d not supported", id);
         return;
-    } else if (o.id <= 3 && o.id >= 1) {
+    } else if (id <= 3 && id >= 1) {
         obj_shape.type = obj_shape.CYLINDER;
-        obj_shape.dimensions = {0.09, 0.025};
+        obj_shape.dimensions = {0.10, 0.04};
         obj_pose.position.z -=0.05;
-    } else if (o.id <= 6 && o.id >= 4) {
+        ROS_INFO("hexagon");
+    } else if (id <= 6 && id >= 4) {
         obj_shape.type = obj_shape.BOX;
         obj_shape.dimensions = {0.05, 0.05, 0.05};
         obj_pose.position.z -=0.025;
-    } else if (o.id <= 9 && o.id >= 7) {
+        ROS_INFO("cube");
+    } else if (id <= 9 && id >= 7) {
         obj_shape.type = obj_shape.BOX;
         obj_shape.dimensions = {0.05, 0.05, 0.05};
         obj_pose.position.z -=0.01; //approx
+        ROS_INFO("triangle");
     }
     obj.primitives.push_back(obj_shape);
     obj.primitive_poses.push_back(obj_pose);
     obj.operation = obj.ADD;
 
     planning_scene_interface.applyCollisionObjects({obj});
-  }
+}
+
+void addCollisionObjects(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
+{
+    for (const auto &o : goal->detectedObj)
+    { // Cycle through all detected objects
+
+        addCollisionObject(o.id, o.pose);
+    }
 }
 
 void addGlobalCollisionObject( )
@@ -303,7 +310,7 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
     // Set the position using the provided point
     pre_grasp_pose.position.x = goal->target_point.x;
     pre_grasp_pose.position.y = goal->target_point.y;
-    pre_grasp_pose.position.z = goal->target_point.z + 0.3; // Offset to ensure pre-grasp height
+    pre_grasp_pose.position.z = goal->target_point.z+ 0.3; // Offset to ensure pre-grasp height
 
     // Set the orientation to ensure the gripper is pointing downward
     tf::Quaternion final_quat;
@@ -326,6 +333,7 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
     {
         ROS_INFO("Planning to pre-grasp pose successful. Executing...");
         move_group.execute(pre_grasp_plan);
+        pre_grasp_pose.position.z -= 0.2;
         success = true;
     }
     else
@@ -333,6 +341,7 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
         ROS_ERROR("Planning to pre-grasp pose failed.");
         success = false; // Set failure
     }
+
 
     return pre_grasp_pose;
 }
@@ -386,12 +395,22 @@ void detachObjectFromRobot(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal
     }
 }
 
-void setActionResult(bool success) {
+void setActionResSucceeded() {
     ir2425_group_08::PickAndPlaceResult result;
-    result.success = success;
+    result.success = true;
     result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
     as_ptr->setSucceeded(result);
 }
+
+void setActionResAborted() {
+    ROS_INFO("ABORTING GOAL");
+
+    ir2425_group_08::PickAndPlaceResult result;
+    result.success = false;
+    result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
+    as_ptr->setAborted(result);
+}
+
 
 void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
@@ -406,7 +425,8 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     gripper_group.setPoseReferenceFrame("map");
     gripper_group.setPlanningTime(10.0);
     rh_ptr->setCurrentWaypointIndex(goal->current_waypoint);
-  
+
+    addCollisionObjects(goal);
     armInSafePosition();
     ros::Duration(1.0).sleep();
     armInPregraspPosition();
@@ -414,16 +434,12 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     geometry_msgs::Pose obj_pose = goal->goal_pose;
 
     //deve diventare addCollisionObjects
-    addCollisionObject(goal);
+    
     bool success;
     geometry_msgs::Pose pre_grasp_pose = goToPreGrasp(goal, success);
-        if (!success) {        
-        ROS_INFO("ABORTING GOAL");
-        armInSafePosition();
-        ir2425_group_08::PickAndPlaceResult result;
-        result.success = false;
-        result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
-        as_ptr->setAborted(result);
+        if (!success) {  
+        armInSafePosition();      
+        setActionResAborted();
         return;
     }
   
@@ -434,12 +450,8 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 
     controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
     if (!goToGrasp(pre_grasp_pose, goal->id)){
-        ROS_INFO("ABORTING GOAL");
         armInSafePosition();
-        ir2425_group_08::PickAndPlaceResult result;
-        result.success = false;
-        result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
-        as_ptr->setAborted(result);
+        setActionResAborted();
         return;
     }
     planning_scene_interface.removeCollisionObjects({std::to_string(goal->id)});
@@ -451,23 +463,34 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     attachObjectToRobot(goal);
     ros::Duration(0.5).sleep();
     goToPreGrasp(goal, success); 
+        if (!success) {  
+        armInSafePosition();      
+        setActionResAborted();
+        return;
+    }
     armInSafePosition();
     
     //qua si deve muovere
     rh_ptr->goFrontPlace(0);
     ROS_INFO("Moving...");
     armInPregraspPosition();
-    // move_group.setPoseTarget(goal->target_point);
-    // move_group.move();
-    goToPlace(goal, success);
+    geometry_msgs::Pose placed = goToPlace(goal, success);
+        if (!success) { 
+        controlGripper(gripper_client, {0.05, 0.05});// Open gripper
+        detachObjectFromRobot(goal);  
+        armInSafePosition();     
+        setActionResAborted();
+        return;
+    }
 
     controlGripper(gripper_client, {0.05, 0.05});// Open gripper
     detachObjectFromRobot(goal);
+    addCollisionObject(goal->id, placed );
     ros::Duration(2.0).sleep();
+    armInPregraspPosition();
     armInSafePosition();
 
-    // Indicate success
-    setActionResult(true);
+    setActionResSucceeded();
 }
 
 int main(int argc, char **argv)

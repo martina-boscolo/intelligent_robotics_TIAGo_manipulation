@@ -71,8 +71,9 @@ void publishDebugPoints(const std::vector<geometry_msgs::Point> &points, ros::No
     marker.color.b = 0.0;
     marker.color.a = 1.0;
 
-    for (const auto &point : points)
+    for ( auto point : points)
     {
+        point.z+= 0.3;
         marker.points.push_back(point);
     }
 
