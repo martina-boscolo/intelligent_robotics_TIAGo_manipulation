@@ -135,46 +135,22 @@ namespace ir2425_group_08
         return true;
     }
 
-    void RouteHandler::followPosesAsync(
-        std::vector<geometry_msgs::Pose> poses,
-        boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
-    {
-        if (poses.empty()) {
-            ROS_WARN("No poses provided for followPosesAsync");
-            return;
-        }
+    // void RouteHandler::followPosesAsync(
+    //     std::vector<geometry_msgs::Pose> poses,
+    //     boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    // {
+    //     if (poses.empty()) {
+    //         ROS_WARN("No poses provided for followPosesAsync");
+    //         return;
+    //     }
 
-        current_poses_ = poses;
-        current_pose_index_ = 0;
-        done_callback_ = done_cb;
+    //     current_poses_ = poses;
+    //     current_pose_index_ = 0;
+    //     done_callback_ = done_cb;
 
-        // Start following the first pose
-        sendNextPose();
-    }
-
-    bool RouteHandler::followWaypoints(std::vector<geometry_msgs::Point> waypoints)
-    {
-        int index = 0;
-        bool last_waypoint_failed = false;
-        while(!last_waypoint_failed && index < static_cast<int>(waypoints.size()))
-        {
-            move_base_msgs::MoveBaseGoal waypointGoal;
-            waypointGoal.target_pose.header.stamp = ros::Time::now();
-            waypointGoal.target_pose.header.frame_id = "map";
-            waypointGoal.target_pose.pose.position = waypoints[index];
-            waypointGoal.target_pose.pose.orientation.w = 1.0;
-
-            this->ac_.sendGoal(waypointGoal);
-
-            bool result = this->ac_.waitForResult(ros::Duration(50.0));
-            ROS_INFO_STREAM("Waypoint " << index << " reached: " + result);
-
-            last_waypoint_failed = !result;
-            index++;
-        }
-
-        return !last_waypoint_failed;
-    }
+    //     // Start following the first pose
+    //     sendNextPose();
+    // }
 
     bool RouteHandler::fullPickRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
     {
@@ -242,72 +218,64 @@ namespace ir2425_group_08
         return true;
     }
 
+    bool RouteHandler::goFrontPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    {
+        auto last_cb = done_cb;
+        if (!done_cb)
+        {
+            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
+        }
+
+        goToWaypoint(5, last_cb);
+
+        return true;
+    }
+
     // private
 
-    void RouteHandler::sendNextPose()
-    {
-        if (current_pose_index_ >= current_poses_.size()) {
-            // All poses completed successfully
-            if (done_callback_) {
-                done_callback_(actionlib::SimpleClientGoalState::SUCCEEDED);
-            }
-            return;
-        }
+    // void RouteHandler::sendNextPose()
+    // {
+    //     if (current_pose_index_ >= current_poses_.size()) {
+    //         // All poses completed successfully
+    //         if (done_callback_) {
+    //             done_callback_(actionlib::SimpleClientGoalState::SUCCEEDED);
+    //         }
+    //         return;
+    //     }
 
-        move_base_msgs::MoveBaseGoal goal;
-        goal.target_pose.header.frame_id = "map";
-        goal.target_pose.header.stamp = ros::Time::now();
-        goal.target_pose.pose = current_poses_[current_pose_index_];
+    //     move_base_msgs::MoveBaseGoal goal;
+    //     goal.target_pose.header.frame_id = "map";
+    //     goal.target_pose.header.stamp = ros::Time::now();
+    //     goal.target_pose.pose = current_poses_[current_pose_index_];
 
-        ROS_INFO("Sending goal (waypoint) %zu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
-                current_pose_index_ + 1,
-                goal.target_pose.pose.position.x,
-                goal.target_pose.pose.position.y,
-                goal.target_pose.pose.position.z,
-                goal.target_pose.pose.orientation.x,
-                goal.target_pose.pose.orientation.y,
-                goal.target_pose.pose.orientation.z,
-                goal.target_pose.pose.orientation.w);
+    //     ROS_INFO("Sending goal (waypoint) %zu: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",
+    //             current_pose_index_ + 1,
+    //             goal.target_pose.pose.position.x,
+    //             goal.target_pose.pose.position.y,
+    //             goal.target_pose.pose.position.z,
+    //             goal.target_pose.pose.orientation.x,
+    //             goal.target_pose.pose.orientation.y,
+    //             goal.target_pose.pose.orientation.z,
+    //             goal.target_pose.pose.orientation.w);
 
-        // Set up the callback for when this goal completes
-        actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>::SimpleDoneCallback cb =
-            [this](const actionlib::SimpleClientGoalState& state,
-                  const move_base_msgs::MoveBaseResultConstPtr& result) {
-                if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
-                    ROS_INFO("Successfully reached goal %zu!", current_pose_index_ + 1);
-                    current_pose_index_++;
-                    sendNextPose();
-                } else {
-                    ROS_WARN("Failed to reach goal %zu. Aborting remaining goals.", current_pose_index_ + 1);
-                    if (done_callback_) {
-                        done_callback_(state);
-                    }
-                }
-            };
+    //     // Set up the callback for when this goal completes
+    //     actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>::SimpleDoneCallback cb =
+    //         [this](const actionlib::SimpleClientGoalState& state,
+    //               const move_base_msgs::MoveBaseResultConstPtr& result) {
+    //             if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
+    //                 ROS_INFO("Successfully reached goal %zu!", current_pose_index_ + 1);
+    //                 current_pose_index_++;
+    //                 sendNextPose();
+    //             } else {
+    //                 ROS_WARN("Failed to reach goal %zu. Aborting remaining goals.", current_pose_index_ + 1);
+    //                 if (done_callback_) {
+    //                     done_callback_(state);
+    //                 }
+    //             }
+    //         };
 
-        this->ac_.sendGoal(goal, cb);
-    }
-
-    geometry_msgs::Point RouteHandler::transformPoint(const geometry_msgs::Point& point_in, const std::string& source_frame, const std::string& target_frame) 
-    {
-        // Wrap the point in a PointStamped
-        geometry_msgs::PointStamped point_stamped_in, point_stamped_out;
-        point_stamped_in.header.frame_id = source_frame;
-        point_stamped_in.header.stamp = ros::Time(0);
-        point_stamped_in.point = point_in;
-
-        // Transform the PointStamped
-        try {
-            this->tf_listener_.waitForTransform(target_frame, source_frame, ros::Time(0), ros::Duration(1.0));
-            this->tf_listener_.transformPoint(target_frame, point_stamped_in, point_stamped_out);
-        } catch (tf::TransformException& ex) {
-            ROS_ERROR("Transform error: %s", ex.what());
-            throw;
-        }
-
-        // Return the transformed point
-        return point_stamped_out.point;
-    }
+    //     this->ac_.sendGoal(goal, cb);
+    // }
 
     size_t RouteHandler::getNextIndex(size_t targetIndex)
     {
@@ -355,98 +323,6 @@ namespace ir2425_group_08
         // Return the transformed point
         return robot_pose_in_map.pose;
     }
-
-    // deprecated
-    // geometry_msgs::Twist RouteHandler::getTwistTowardPose(geometry_msgs::Pose start_pose, geometry_msgs::Pose target_pose, float linear_speed)
-    // {
-    //     geometry_msgs::Twist goalTwist;
-
-    //     double dx = target_pose.position.x - start_pose.position.x;
-    //     double dy = target_pose.position.y - start_pose.position.y;
-
-    //     double distance = std::sqrt(dx * dx + dy * dy);
-    //     // target_yaw = std::atan2(dy, dx);
-
-    //     // // extract current yaw
-    //     // tf::Quaternion start_orientation;
-    //     // tf::fromMsg(start_pose.orientation, start_orientation);
-    //     // double start_roll, start_pitch, start_yaw;
-    //     // tf::Matrix3x3(q).getRPY(start_roll, start_pitch, start_yaw);
-
-    //     // double angular_diff = target_yaw - current_yaw;
-
-    //     // // Normalize angular difference to [-pi, pi]
-    //     // while (angular_diff > M_PI)
-    //     // {
-    //     //     angular_diff -= 2.0 * M_PI;
-    //     // }
-    //     // while (angular_diff < -M_PI)
-    //     // {
-    //     //     angular_diff += 2.0 * M_PI;
-    //     // }
-
-    //     if (distance > 0.01) { // Tolerance to stop linear movement
-    //         goalTwist.linear.x = (dx / distance) * linear_speed;
-    //         goalTwist.linear.y = (dy / distance) * linear_speed;
-    //     } else {
-    //         goalTwist.linear.x = twist.linear.y = 0.0; // Stop if close to the target
-    //     }
-
-    //     // if (std::abs(angular_diff) > 0.01) { // Tolerance for angular alignment
-    //     //     goalTwist.angular.z = (angular_diff > 0 ? 1 : -1) * angular_speed;
-    //     // } else {
-    //     //     goalTwist.angular.z = 0.0; // Stop angular motion if aligned
-    //     // }
-
-    //     return goalTwist;
-    // }
-
-    // bool RoutHandler::waypointReached(geometry_msgs::Pose target_pose, double& e_linear)
-    // {
-    //     // get current position
-    //     const nav_msgs::OdometryConstPtr& msg = ros::topic:waitForMessage<nav_msgs::Odometry>("/odom", *nh_ptr_, ros::Duration(5.0));
-    //     if(!msg)
-    //     {
-    //         ROS_WARN("Failed to retrieve actual robot position during precise movment");
-    //         return false;
-    //     }
-
-    //     double current_x = msg->pose.pose.position.x;
-    //     double current_y = msg->pose.pose.position.y;
-
-    //     double target_x = target_pose.position.x;
-    //     double target_y = target_pose.position.y;
-
-    //     // Compute Errors
-    //     e_linear = std::sqrt(std::pow(target_x - current_x, 2) + std::pow(target_y - current_y, 2));
-
-    //     return (e_linear <= waypointTolerance_);
-    // }
-
-    // bool RoutHandler::orientationReached(geometry_msgs::Pose target_pose, double& e_angular)
-    // {
-    //     // get current position
-    //     const nav_msgs::OdometryConstPtr& msg = ros::topic:waitForMessage<nav_msgs::Odometry>("/odom", *nh_ptr_, ros::Duration(5.0));
-    //     if(!msg)
-    //     {
-    //         ROS_WARN("Failed to retrieve actual robot position during precise movment");
-    //         return false;
-    //     }
-
-    //     double current_x = msg->pose.pose.position.x;
-    //     double current_y = msg->pose.pose.position.y;
-    //     double current_theta = tf::getYaw(msg->pose.pose.orientation);
-
-    //     double target_x = target_pose.position.x;
-    //     double target_y = target_pose.position.y;
-
-    //     // Compute Errors
-    //     double target_angle = std::atan2(target_y - current_y, target_x - current_x);
-    //     double e_angular = target_angle - current_theta;
-    //     e_angular = std::atan2(std::sin(e_angular), std::cos(e_angular)); // Normalize angle
-
-    //     return (std::fabs(e_angular) <= waypointTolerance_);
-    // }
 
     void RouteHandler::pointTowards(geometry_msgs::Pose target_pose)
     {
