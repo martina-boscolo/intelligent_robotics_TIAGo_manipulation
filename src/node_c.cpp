@@ -303,6 +303,75 @@ bool goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal)
     }
 }
 
+bool goUp(const geometry_msgs::Pose pre_pose)
+{
+
+    moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
+    move_group.setPoseReferenceFrame("map");
+    move_group.setPlanningTime(10.0);
+    geometry_msgs::Pose up_pose = pre_pose;
+    
+    up_pose.position.z += 0.30;
+    move_group.setPoseTarget(up_pose);
+    moveit::planning_interface::MoveGroupInterface::Plan grasp_plan;
+    if (move_group.plan(grasp_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS)
+    {
+        ROS_INFO("Planning to up pose successful. Executing...");
+        move_group.execute(grasp_plan);
+        return true;
+    }
+    else
+    {
+        ROS_ERROR("Planning to up pose failed.");
+        return false;
+    }
+}
+
+
+
+double goCartesianUpOrDown(double meters) {
+    moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
+    move_group.setPoseReferenceFrame("map");
+    move_group.setPlanningTime(10.0);
+
+    // save waypoints
+    std::vector<geometry_msgs::Pose> waypoints;
+    geometry_msgs::Pose target_pose = move_group.getCurrentPose().pose;
+    
+    // move the robot down of meters
+    target_pose.position.z += meters;
+    waypoints.push_back(target_pose);
+    
+    // set parameters
+    move_group.setStartStateToCurrentState();
+    moveit_msgs::RobotTrajectory trajectory;
+
+    const double jump_threshold = 0.0;  // Disable jump threshold
+    const double eef_step = 0.01;       // Step size for Cartesian path interpolation
+    double fraction = move_group.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+
+    if (fraction < 1.0)
+    {
+        ROS_ERROR("Cartesian path planning failed. Completed only %.2f%% of the path.", fraction * 100.0);
+        return false;
+    }
+    ROS_INFO("Cartesian path planning successful. Executing...");
+    moveit::planning_interface::MoveGroupInterface::Plan grasp_plan;
+    grasp_plan.trajectory_ = trajectory;
+    if (move_group.execute(grasp_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS)
+    {
+        ROS_INFO("Cartesian path execution successful.");
+        return true;
+    }
+    else
+    {
+        ROS_ERROR("Cartesian path execution failed.");
+        return false;
+    }
+}
+
+
+
 geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal, bool &success, int &selected_index)
 {
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
@@ -322,7 +391,7 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
         // Set the position using the provided point
         pre_grasp_pose.position.x = current_attempt.x;
         pre_grasp_pose.position.y = current_attempt.y;
-        pre_grasp_pose.position.z = current_attempt.z + 0.3; // Offset to ensure pre-grasp height
+        pre_grasp_pose.position.z = current_attempt.z + 0.35; // Offset to ensure pre-grasp height
 
         // Set the orientation to ensure the gripper is pointing downward
         tf::Quaternion final_quat;
@@ -345,7 +414,6 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
         {
             ROS_INFO_STREAM("Positioned object on place table. Executing...");
             move_group.execute(pre_grasp_plan);
-            pre_grasp_pose.position.z -= 0.2;
             success = true;
             selected_index = i;
             break;
@@ -356,7 +424,11 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
             success = false; // Set failure
         }
     }
-
+    pre_grasp_pose.orientation.x = 0.0;
+    pre_grasp_pose.orientation.y = 0.0;
+    pre_grasp_pose.orientation.z = 0.0;
+    pre_grasp_pose.orientation.w = 1.0;
+    pre_grasp_pose.position.z -= 0.22;
     return pre_grasp_pose;
 }
 
@@ -381,7 +453,7 @@ bool controlGripper(actionlib::SimpleActionClient<control_msgs::FollowJointTraje
     }
     else
     {
-        ROS_WARN("Gripper action failed.");
+        ROS_INFO("Gripper action failed.");
         // return false;
     }
     return true;
@@ -430,7 +502,7 @@ void setActionResAborted()
 
     ir2425_group_08::PickAndPlaceResult result;
     result.success = false;
-    result.selected_target_index = 42; // The Answer to the Ultimate Question of Life, the Universe, and Everything
+    result.selected_target_index = 42; // The Answer to the Ultimate Question of Life, the Universe, and Everything. This is not ChatGPT.
     result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
     as_ptr->setAborted(result);
 }
@@ -482,10 +554,10 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 
     // gripper_goal.trajectory.points.clear(); // Clear the previous trajectory
 
-    controlGripper(gripper_client, {0.00, 0.00}); // Open gripper
-
+    controlGripper(gripper_client, {0.00, 0.00}); //close gripper
     attachObjectToRobot(goal);
     ros::Duration(0.5).sleep();
+    //goCartesianUpOrDown(0.10);
     goToPreGrasp(goal, success);
     if (!success)
     {
@@ -493,32 +565,33 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
         setActionResAborted();
         return;
     }
-
-    int selected_index;
-
     armInSafePosition();
+    
+    int selected_index;
+    success = false; 
     rh_ptr->goFrontPlace();
     ROS_INFO("Moving front place...");
     armInPregraspPosition();
-    geometry_msgs::Pose placed = goToPlace(goal, success, selected_index);
-
+    geometry_msgs::Pose placed;
+    placed = goToPlace(goal, success, selected_index);
     if (!success)
     {
         armInSafePosition();
-        rh_ptr->goAsidePlace();
+        rh_ptr->goBackPlace();
         ROS_INFO("Moving aside place...");
         armInPregraspPosition();
-        geometry_msgs::Pose placed = goToPlace(goal, success, selected_index);
+        placed = goToPlace(goal, success, selected_index);
 
         if (!success)
         {
             armInSafePosition();
-            rh_ptr->goBackPlace();
+            rh_ptr->goAsidePlace();
+            
             ROS_INFO("Moving back place...");
             armInPregraspPosition();
-            geometry_msgs::Pose placed = goToPlace(goal, success, selected_index);
+            placed = goToPlace(goal, success, selected_index);
 
-            if (!success)
+            if (!success) //should never happen
             {
                 controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
                 detachObjectFromRobot(goal);
@@ -528,12 +601,20 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
             }
         }
     }
+    // if (!goToGrasp(pre_grasp_pose, goal->id))
+    // {
+    //     armInSafePosition();
+    //     setActionResAborted();
+    //     return;
+    // }
 
     controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
     detachObjectFromRobot(goal);
     addCollisionObject(goal->id, placed);
     ros::Duration(2.0).sleep();
-    armInPregraspPosition();
+    //goUp(placed);
+    //goCartesianUpOrDown(0.05);
+    //armInPregraspPosition();
     armInSafePosition();
 
     setActionResSucceeded(selected_index);
