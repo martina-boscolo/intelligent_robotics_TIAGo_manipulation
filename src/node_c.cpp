@@ -17,6 +17,7 @@
 
 using NodeHandleShared = std::shared_ptr<ros::NodeHandle>;
 
+// position of tiago with respect to Gazebo origin in the simulation
 const float tiago_start_x = -6.580157;
 const float tiago_start_y = 1.369999;
 
@@ -91,6 +92,7 @@ void armInPregraspPosition()
         ROS_ERROR("Arm over the table position failed.");
     }
 }
+
 void addCollisionObject(const int id, const geometry_msgs::Pose pose)
 {
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
@@ -107,6 +109,7 @@ void addCollisionObject(const int id, const geometry_msgs::Pose pose)
 
     shape_msgs::SolidPrimitive obj_shape;
 
+    // choosing primitive and dimensions based on tags
     if (id < 1 || id > 9)
     {
         ROS_ERROR("ERROR  | Object with id %d not supported", id);
@@ -264,6 +267,8 @@ bool goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal)
     move_group.setPoseReferenceFrame("map");
     move_group.setPlanningTime(10.0);
     geometry_msgs::Pose grasp_pose = pre_grasp_pose;
+
+    // going down differently for each type of object
     if (goal < 1 || goal > 9)
     {
         ROS_ERROR("ERROR  | Object with id %d not supported", goal);
@@ -306,6 +311,8 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
     move_group.setPlanningTime(2.0);
     geometry_msgs::Pose pre_grasp_pose;
     int i;
+
+    // for each candidate point
     for (i = 0; i < goal->target_points.size(); i++)
     {
         geometry_msgs::Point current_attempt = goal->target_points[i];
@@ -333,6 +340,7 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
         moveit::planning_interface::MoveGroupInterface::Plan pre_grasp_plan;
         if (move_group.plan(pre_grasp_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS)
         {
+            // the candidate point is reachable from Tiago
             ROS_INFO_STREAM("Positioned object on place table. Executing...");
             move_group.execute(pre_grasp_plan);
             success = true;
@@ -370,12 +378,10 @@ bool controlGripper(actionlib::SimpleActionClient<control_msgs::FollowJointTraje
     if (gripper_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
     {
         ROS_INFO("Gripper action succeeded.");
-        // return true;
     }
     else
     {
         ROS_INFO("Gripper action failed.");
-        // return false;
     }
     return true;
 }
@@ -441,6 +447,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     gripper_group.setPlanningTime(10.0);
     rh_ptr->setCurrentWaypointIndex(goal->current_waypoint);
 
+    // initializing collision objects for detected objects and raising arm
     addCollisionObjects(goal);
     armInSafePosition();
     ros::Duration(1.0).sleep();
@@ -448,6 +455,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 
     geometry_msgs::Pose obj_pose = goal->goal_pose;
 
+    // trying to go above the object
     bool success;
     geometry_msgs::Pose pre_grasp_pose = goToPreGrasp(goal, success);
     if (!success)
@@ -463,6 +471,8 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     ROS_INFO("Gripper action server connected.");
 
     controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
+
+    // grasping the object
     if (!goToGrasp(pre_grasp_pose, goal->id))
     {
         armInSafePosition();
@@ -483,6 +493,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     }
     armInSafePosition();
     
+    // trying to move above the first reaachable candidate point on place table
     int selected_index;
     success = false; 
     rh_ptr->goFrontPlace();
@@ -518,6 +529,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
         }
     }
 
+    // place the object
     controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
     detachObjectFromRobot(goal);
     addCollisionObject(goal->id, placed);
