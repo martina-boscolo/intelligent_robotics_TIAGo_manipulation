@@ -111,6 +111,11 @@ void generatePointsInAprilTagFrame(float m, float q, int n, ros::NodeHandle &nh)
             }
         } else
         {
+            if (q >= 0.2)
+            {
+                step = 0.08;
+            }
+
             for (int i = 0; i < n; ++i)
             {
                 geometry_msgs::PointStamped point_apriltag;
@@ -301,6 +306,8 @@ int main(int argc, char **argv)
     float m = srv.response.coeffs[0];
     float q = srv.response.coeffs[1];
 
+    m = 9.0;
+    q = 0.3;
     ROS_INFO("m = %f", m);
     ROS_INFO("q = %f", q);
 
