@@ -24,11 +24,11 @@ Also node_a, node_b and node_c can be launched using a launch file, specifically
 
 ```	> roslaunch tiago_iaslab_simulation start_simulation.launch world_name:=iaslab_assignment2 ```
 
-#### Terminal 3: AprilTag
+#### Terminal 2: AprilTag
 
 ```	> roslaunch tiago_iaslab_simulation apriltag2.launch ```
 
-#### Terminal 2: Navigation stack
+#### Terminal 3: Navigation stack
 
 ```	> roslaunch tiago_iaslab_simulation navigation.launch ```
 
