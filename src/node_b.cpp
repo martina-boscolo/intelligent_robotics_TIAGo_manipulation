@@ -41,36 +41,6 @@ geometry_msgs::PoseStamped transformTagPose(const geometry_msgs::Pose& tag_pose,
     return pos_out;
 }
 
-
-// bool isPoseWithinArmReachXY(const geometry_msgs::PoseStamped &target_pose_map, double max_reach = TIAGO_ARM_MAX_REACH)
-// {
-//     static tf::TransformListener tf_listener;
-
-//     try
-//     {
-//         tf::StampedTransform transform;
-//         tf_listener.waitForTransform("base_link", "map", ros::Time(0), ros::Duration(2.0));
-//         tf_listener.lookupTransform("base_link", "map", ros::Time(0), transform);
-
-//         double robot_x = transform.getOrigin().x();
-//         double robot_y = transform.getOrigin().y();
-
-//         double target_x = target_pose_map.pose.position.x;
-//         double target_y = target_pose_map.pose.position.y;
-
-//         double distance_xy = std::sqrt(
-//             std::pow(target_x - robot_x, 2) +
-//             std::pow(target_y - robot_y, 2));
-
-//         return distance_xy <= max_reach;
-//     }
-//     catch (tf::TransformException &ex)
-//     {
-//         ROS_WARN("Failed to lookup transform from 'map' to 'base_link': %s", ex.what());
-//         return false;
-//     }
-// }
-
 void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vector<ir2425_group_08::DetectedObj> objs ) {
     ir2425_group_08::PickAndPlaceGoal goal;
     goal.goal_pose = transformed_pose.pose;
@@ -78,14 +48,6 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     goal.detectedObj = objs;
     goal.current_waypoint = rh_ptr->getCurrentWaypointIndex();
 
-    // if (placed_tags < numPlaceServicePoints)
-    // {
-    //     goal.target_point = PlaceServicePoints[placed_tags];
-    // } else
-    // {
-    //     goal.target_point = PlaceServicePoints[numPlaceServicePoints--];
-    //     ROS_ERROR("TRYING TO PLACE TOO MANY OBJECTS!!! Something weird happened...");
-    // }
     goal.target_points = placeServicePoints;
     ROS_INFO_STREAM("Sending apriltag " << id << " as goal.");
     ac_ptr->sendGoal(goal);
@@ -157,7 +119,7 @@ void poseReachedCallback(const actionlib::SimpleClientGoalState& state) {
 }
 
 bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_group_08::PlaceService::Response &res) {
-    ROS_INFO_STREAM("Received " << req.num_goals << " goals for pick and place");
+    ROS_INFO_STREAM("Received: " << req.num_goals << " goals for pick and place / " << req.target_points.size() << " available locations.");
 
     placeServicePoints = req.target_points;
     numPlaceServicePoints = req.num_goals;
@@ -168,31 +130,40 @@ bool handlePlaceService(ir2425_group_08::PlaceService::Request &req, ir2425_grou
 
     while(tagsFound && placed_tags < numPlaceServicePoints)
     {
-        rh_ptr->goFrontPick(0);
+        rh_ptr->goFrontPick();
         scanForTags();
     }
-    ROS_INFO_STREAM("All reachable apriltags detected from front sent. " << numPlaceServicePoints - placed_tags 
-        << " apriltags remain in order to complete the task.");
+    if (placed_tags < numPlaceServicePoints)
+    {
+        ROS_INFO_STREAM("All reachable apriltags detected from front sent. " << numPlaceServicePoints - placed_tags 
+            << " apriltags remain in order to complete the task.");
+    }
     tagsFound = true;
     foundTagIds.clear();
 
     while(tagsFound && placed_tags < numPlaceServicePoints)
     {
-        rh_ptr->goAsidePick(0);
+        rh_ptr->goAsidePick();
         scanForTags();
     }
-    ROS_INFO_STREAM("All reachable apriltags detected from aside sent. " << numPlaceServicePoints - placed_tags 
-        << " apriltags remain in order to complete the task.");
+    if (placed_tags < numPlaceServicePoints)
+    {
+        ROS_INFO_STREAM("All reachable apriltags detected from aside sent. " << numPlaceServicePoints - placed_tags 
+            << " apriltags remain in order to complete the task.");
+    }
     tagsFound = true;
     foundTagIds.clear();
 
     while(tagsFound && placed_tags < numPlaceServicePoints)
     {
-        rh_ptr->goBackPick(0);
+        rh_ptr->goBackPick();
         scanForTags();
     }
-    ROS_INFO_STREAM("All reachable apriltags detected from back sent. " << numPlaceServicePoints - placed_tags 
-        << " apriltags remain in order to complete the task.");
+    if (placed_tags < numPlaceServicePoints)
+    {
+        ROS_INFO_STREAM("All reachable apriltags detected from back sent. " << numPlaceServicePoints - placed_tags 
+            << " apriltags remain in order to complete the task.");
+    }
     ROS_INFO_STREAM("IT'S OVER, PLACED " << placed_tags << " APRILTAGS");
 
     res.success = true;

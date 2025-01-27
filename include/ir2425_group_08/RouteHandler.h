@@ -41,19 +41,19 @@ namespace ir2425_group_08
         void moveTowards(geometry_msgs::Pose target_pose);
         void alignWithPose(geometry_msgs::Pose target_pose);
 
-        void goToWaypoint(size_t index, boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        void goToWaypoint(size_t index);
     public:
         RouteHandler(NodeHandleShared& nh_ptr);
 
-        bool fullPickRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
-        bool fullPlaceRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        bool fullPickRotation();
+        bool fullPlaceRotation();
 
-        bool goFrontPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
-        bool goAsidePick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
-        bool goBackPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
-        bool goFrontPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
-        bool goAsidePlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
-        bool goBackPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb);
+        bool goFrontPick();
+        bool goAsidePick();
+        bool goBackPick();
+        bool goFrontPlace();
+        bool goAsidePlace();
+        bool goBackPlace();
 
         size_t getCurrentWaypointIndex();
         void setCurrentWaypointIndex(size_t new_index);

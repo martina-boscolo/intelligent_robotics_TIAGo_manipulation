@@ -135,7 +135,7 @@ namespace ir2425_group_08
 
     // public
 
-    bool RouteHandler::fullPickRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::fullPickRotation()
     {
         if (currentWaypointIndex_ != 5)
         {
@@ -143,20 +143,14 @@ namespace ir2425_group_08
             return false;
         }
 
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
+        goToWaypoint(0);
 
-        goToWaypoint(0, [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ });
-
-        goToWaypoint(4, last_cb);
+        goToWaypoint(4);
 
         return true;
     }
 
-    bool RouteHandler::fullPlaceRotation(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::fullPlaceRotation()
     {
         if (currentWaypointIndex_ != 5)
         {
@@ -164,93 +158,51 @@ namespace ir2425_group_08
             return false;
         }
 
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
+        goToWaypoint(9);
 
-        goToWaypoint(9, [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ });
-
-        goToWaypoint(5, last_cb);
+        goToWaypoint(5);
 
         return true;
     }
 
-    bool RouteHandler::goFrontPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::goFrontPick()
     {
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
-
-        goToWaypoint(4, last_cb);
+        goToWaypoint(4);
 
         return true;
     }
 
-    bool RouteHandler::goAsidePick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::goAsidePick()
     {
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
-
-        goToWaypoint(2, last_cb);
+        goToWaypoint(2);
 
         return true;
     }
 
-    bool RouteHandler::goBackPick(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::goBackPick()
     {
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
-
-        goToWaypoint(0, last_cb);
+        goToWaypoint(0);
 
         return true;
     }
 
-    bool RouteHandler::goFrontPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::goFrontPlace()
     {
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
-
-        goToWaypoint(5, last_cb);
+        goToWaypoint(5);
 
         return true;
     }
 
-    bool RouteHandler::goAsidePlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::goAsidePlace()
     {
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
-
-        goToWaypoint(7, last_cb);
+        goToWaypoint(7);
 
         return true;
     }
 
-    bool RouteHandler::goBackPlace(boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    bool RouteHandler::goBackPlace()
     {
-        auto last_cb = done_cb;
-        if (!done_cb)
-        {
-            last_cb = [](const actionlib::SimpleClientGoalState& state) { /* do nothing */ };
-        }
-
-        goToWaypoint(9, last_cb);
+        goToWaypoint(9);
 
         return true;
     }
@@ -429,7 +381,7 @@ namespace ir2425_group_08
         this->cmd_vel_pub_.publish(cmd_vel);
     }
 
-    void RouteHandler::goToWaypoint(size_t index, boost::function<void(const actionlib::SimpleClientGoalState&)> done_cb)
+    void RouteHandler::goToWaypoint(size_t index)
     {
         if (tablesWaypoints_.empty()) {
             ROS_WARN("No waypoints know by RouteHandler");
@@ -470,8 +422,5 @@ namespace ir2425_group_08
 
         // debug
         ROS_INFO_STREAM(getRobotPoseInMap());
-
-        // notify the node that called that the movment is done
-        done_cb(actionlib::SimpleClientGoalState::SUCCEEDED);
     }
 }

@@ -22,11 +22,10 @@ const float tiago_start_y = 1.369999;
 
 // define name of models of links of Gazebo objects
 const std::string model_types[9] = {"Hexagon", "Hexagon_2", "Hexagon_3", "cube", "cube_5",
-	"cube_6", "Triangle", "Triangle_8", "Triangle_9"};
+                                    "cube_6", "Triangle", "Triangle_8", "Triangle_9"};
 
 const std::string link_types[9] = {"Hexagon_link", "Hexagon_2_link", "Hexagon_3_link", "cube_link", "cube_5_link",
-	"cube_6_link", "Triangle_link", "Triangle_8_link", "Triangle_9_link"};
-
+                                   "cube_6_link", "Triangle_link", "Triangle_8_link", "Triangle_9_link"};
 
 // TODO
 //  class Manipulation
@@ -36,16 +35,16 @@ const std::string link_types[9] = {"Hexagon_link", "Hexagon_2_link", "Hexagon_3_
 actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> *as_ptr;
 ros::ServiceClient attachService_;
 ros::ServiceClient detachService_;
-ir2425_group_08::RouteHandler* rh_ptr;
-ros::NodeHandle* nh_ptr;
+ir2425_group_08::RouteHandler *rh_ptr;
+ros::NodeHandle *nh_ptr;
 
 void armInSafePosition()
 {
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
-    move_group.setPlanningTime(15.0);
+    move_group.setPlanningTime(10.0);
 
     std::map<std::string, double> target_joint_values;
-    target_joint_values["torso_lift_joint"] = 0.272; // meters
+    target_joint_values["torso_lift_joint"] = 0.272;          // meters
     target_joint_values["arm_1_joint"] = 27.0 * M_PI / 180.0; // Convert degrees to radians
     target_joint_values["arm_2_joint"] = 33.0 * M_PI / 180.0;
     target_joint_values["arm_3_joint"] = -163.0 * M_PI / 180.0;
@@ -71,10 +70,10 @@ void armInSafePosition()
 void armInPregraspPosition()
 {
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
-    move_group.setPlanningTime(15.0);
+    move_group.setPlanningTime(10.0);
 
     std::map<std::string, double> target_joint_values;
-    target_joint_values["torso_lift_joint"] = 0.272; // meters
+    target_joint_values["torso_lift_joint"] = 0.272;          // meters
     target_joint_values["arm_1_joint"] = 25.0 * M_PI / 180.0; // Convert degrees to radians
     target_joint_values["arm_2_joint"] = 58.0 * M_PI / 180.0;
     target_joint_values["arm_3_joint"] = -69.0 * M_PI / 180.0;
@@ -96,7 +95,7 @@ void armInPregraspPosition()
         ROS_ERROR("Arm over the table position failed.");
     }
 }
-void addCollisionObject(const int id, const geometry_msgs::Pose pose )
+void addCollisionObject(const int id, const geometry_msgs::Pose pose)
 {
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
@@ -112,23 +111,30 @@ void addCollisionObject(const int id, const geometry_msgs::Pose pose )
 
     shape_msgs::SolidPrimitive obj_shape;
 
-    if (id < 1 || id > 9){
+    if (id < 1 || id > 9)
+    {
         ROS_ERROR("ERROR  | Object with id %d not supported", id);
         return;
-    } else if (id <= 3 && id >= 1) {
+    }
+    else if (id <= 3 && id >= 1)
+    {
         obj_shape.type = obj_shape.CYLINDER;
         obj_shape.dimensions = {0.10, 0.04};
-        obj_pose.position.z -=0.05;
+        obj_pose.position.z -= 0.05;
         ROS_INFO("hexagon");
-    } else if (id <= 6 && id >= 4) {
+    }
+    else if (id <= 6 && id >= 4)
+    {
         obj_shape.type = obj_shape.BOX;
         obj_shape.dimensions = {0.05, 0.05, 0.05};
-        obj_pose.position.z -=0.025;
+        obj_pose.position.z -= 0.025;
         ROS_INFO("cube");
-    } else if (id <= 9 && id >= 7) {
+    }
+    else if (id <= 9 && id >= 7)
+    {
         obj_shape.type = obj_shape.BOX;
         obj_shape.dimensions = {0.05, 0.05, 0.05};
-        obj_pose.position.z -=0.01; //approx
+        obj_pose.position.z -= 0.01; // approx
         ROS_INFO("triangle");
     }
     obj.primitives.push_back(obj_shape);
@@ -147,11 +153,11 @@ void addCollisionObjects(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
     }
 }
 
-void addGlobalCollisionObject( )
+void addGlobalCollisionObject()
 {
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
-    //Add the pick_table to the collision environment
+    // Add the pick_table to the collision environment
     moveit_msgs::CollisionObject pick_table;
     pick_table.id = "pick_table";
     pick_table.header.frame_id = "map";
@@ -192,18 +198,18 @@ void addGlobalCollisionObject( )
     planning_scene_interface.applyCollisionObjects({pick_table, place_table});
 }
 
-geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal, bool& success )
+geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal, bool &success)
 {
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
     move_group.setPoseReferenceFrame("map");
-    move_group.setPlanningTime(30.0);
+    move_group.setPlanningTime(10.0);
 
     geometry_msgs::Pose obj_pose = goal->goal_pose;
     geometry_msgs::Pose pre_grasp_pose = obj_pose;
 
     tf::Quaternion init_quat(obj_pose.orientation.x, obj_pose.orientation.y, obj_pose.orientation.z, obj_pose.orientation.w);
     double roll, pitch, yaw;
-    tf::Quaternion final_quat(0,0,0,1);
+    tf::Quaternion final_quat(0, 0, 0, 1);
     tf::Matrix3x3(init_quat).getRPY(roll, pitch, yaw);
 
     if (goal->id < 1 || goal->id > 9)
@@ -214,7 +220,7 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
     {
         roll = 0;
         pitch = M_PI_2;
-        pre_grasp_pose.position.z += 0.3; 
+        pre_grasp_pose.position.z += 0.3;
         ROS_INFO("hexagon");
     }
     else if (goal->id <= 6 && goal->id >= 4)
@@ -222,13 +228,13 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
         roll = 0;
         pitch = M_PI_2;
         pre_grasp_pose.position.z += 0.3;
-        ROS_INFO("cube"); 
+        ROS_INFO("cube");
     }
     else if (goal->id <= 9 && goal->id >= 7)
     {
         roll = 0;
         pitch = M_PI_2;
-        //yaw += M_PI_2;
+        // yaw += M_PI_2;
         pre_grasp_pose.position.z += 0.3;
         ROS_INFO("triangle");
     }
@@ -250,17 +256,17 @@ geometry_msgs::Pose goToPreGrasp(const ir2425_group_08::PickAndPlaceGoalConstPtr
     else
     {
         ROS_ERROR("Planning to pre-grasp pose failed.");
-        success = false;  // Set failure
+        success = false; // Set failure
     }
     return pre_grasp_pose;
 }
 
-
-bool goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
+bool goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal)
+{
 
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
     move_group.setPoseReferenceFrame("map");
-    move_group.setPlanningTime(30.0);
+    move_group.setPlanningTime(10.0);
     geometry_msgs::Pose grasp_pose = pre_grasp_pose;
     if (goal < 1 || goal > 9)
     {
@@ -269,13 +275,13 @@ bool goToGrasp(const geometry_msgs::Pose pre_grasp_pose, const int goal){
     }
     else if (goal <= 3 && goal >= 1)
     {
-        grasp_pose.position.z -= 0.076; //0.3-0.076
+        grasp_pose.position.z -= 0.076; // 0.3-0.076
         ROS_INFO("hexagon");
     }
     else if (goal <= 6 && goal >= 4)
     {
         grasp_pose.position.z -= 0.08;
-        ROS_INFO("cube"); 
+        ROS_INFO("cube");
     }
     else if (goal <= 9 && goal >= 7)
     {
@@ -301,18 +307,17 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
 {
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
     move_group.setPoseReferenceFrame("map");
-    move_group.setPlanningTime(30.0);
+    move_group.setPlanningTime(10.0);
     geometry_msgs::Pose pre_grasp_pose;
     int i;
-    for ( i = 0; i < goal->target_points.size(); i++)
+    for (i = 0; i < goal->target_points.size(); i++)
     {
 
         geometry_msgs::Point current_attempt = goal->target_points[i];
 
-        ROS_INFO_STREAM("Target point " << current_attempt);
+        ROS_INFO_STREAM("Target place point " << i);
 
         // Define pre-grasp pose using the provided point
-        
 
         // Set the position using the provided point
         pre_grasp_pose.position.x = current_attempt.x;
@@ -338,16 +343,16 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
         moveit::planning_interface::MoveGroupInterface::Plan pre_grasp_plan;
         if (move_group.plan(pre_grasp_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS)
         {
-            ROS_INFO_STREAM("Positioned object on place table. Executing..." << i );
+            ROS_INFO_STREAM("Positioned object on place table. Executing...");
             move_group.execute(pre_grasp_plan);
             pre_grasp_pose.position.z -= 0.2;
             success = true;
-            selected_index = i; 
-            break; 
+            selected_index = i;
+            break;
         }
         else
         {
-            ROS_ERROR("Failed to position object on place table. %d index failed" , i);
+            ROS_ERROR("Failed to position object on place table.");
             success = false; // Set failure
         }
     }
@@ -355,7 +360,8 @@ geometry_msgs::Pose goToPlace(const ir2425_group_08::PickAndPlaceGoalConstPtr &g
     return pre_grasp_pose;
 }
 
-bool controlGripper(actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> &gripper_client, const std::vector<double> &positions) {
+bool controlGripper(actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> &gripper_client, const std::vector<double> &positions)
+{
     control_msgs::FollowJointTrajectoryGoal gripper_goal;
     gripper_goal.trajectory.joint_names = {"gripper_left_finger_joint", "gripper_right_finger_joint"};
 
@@ -368,69 +374,76 @@ bool controlGripper(actionlib::SimpleActionClient<control_msgs::FollowJointTraje
     gripper_client.sendGoal(gripper_goal);
     gripper_client.waitForResult();
 
-    if (gripper_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED) {
+    if (gripper_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+    {
         ROS_INFO("Gripper action succeeded.");
-        //return true;
-    } else {
+        // return true;
+    }
+    else
+    {
         ROS_WARN("Gripper action failed.");
-        //return false;
+        // return false;
     }
     return true;
 }
 
-void attachObjectToRobot(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal) {
+void attachObjectToRobot(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
+{
     gazebo_ros_link_attacher::Attach attach_srv_msg;
     attach_srv_msg.request.model_name_1 = "tiago";
     attach_srv_msg.request.link_name_1 = "arm_7_link";
     attach_srv_msg.request.model_name_2 = model_types[goal->id - 1];
     attach_srv_msg.request.link_name_2 = link_types[goal->id - 1];
 
-    if (attachService_.call(attach_srv_msg)) {
+    if (attachService_.call(attach_srv_msg))
+    {
         ROS_INFO("Attached object");
     }
 }
 
-void detachObjectFromRobot(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal) {
+void detachObjectFromRobot(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
+{
     gazebo_ros_link_attacher::Attach detach_srv_msg;
     detach_srv_msg.request.model_name_1 = "tiago";
     detach_srv_msg.request.link_name_1 = "arm_7_link";
     detach_srv_msg.request.model_name_2 = model_types[goal->id - 1];
     detach_srv_msg.request.link_name_2 = link_types[goal->id - 1];
 
-    if (detachService_.call(detach_srv_msg)) {
+    if (detachService_.call(detach_srv_msg))
+    {
         ROS_INFO("Detached object");
     }
 }
 
-void setActionResSucceeded(int index) {
+void setActionResSucceeded(int index)
+{
     ir2425_group_08::PickAndPlaceResult result;
     result.success = true;
-    result.selected_target_index=index;
+    result.selected_target_index = index;
     result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
     as_ptr->setSucceeded(result);
 }
 
-void setActionResAborted() {
+void setActionResAborted()
+{
     ROS_INFO("ABORTING GOAL");
 
     ir2425_group_08::PickAndPlaceResult result;
     result.success = false;
-    result.selected_target_index=42;
+    result.selected_target_index = 42; // The Answer to the Ultimate Question of Life, the Universe, and Everything
     result.new_current_waypoint = rh_ptr->getCurrentWaypointIndex();
     as_ptr->setAborted(result);
 }
 
-
 void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 {
     ROS_INFO_STREAM("Got tag " << goal->id << " with pose " << goal->goal_pose);
-   
 
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
     moveit::planning_interface::MoveGroupInterface move_group("arm_torso");
     moveit::planning_interface::MoveGroupInterface gripper_group("gripper");
     move_group.setPoseReferenceFrame("map");
-    move_group.setPlanningTime(30.0);
+    move_group.setPlanningTime(10.0);
     gripper_group.setPoseReferenceFrame("map");
     gripper_group.setPlanningTime(10.0);
     rh_ptr->setCurrentWaypointIndex(goal->current_waypoint);
@@ -442,60 +455,83 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 
     geometry_msgs::Pose obj_pose = goal->goal_pose;
 
-    //deve diventare addCollisionObjects
-    
+    // deve diventare addCollisionObjects
+
     bool success;
     geometry_msgs::Pose pre_grasp_pose = goToPreGrasp(goal, success);
-        if (!success) {  
-        armInSafePosition();      
+    if (!success)
+    {
+        armInSafePosition();
         setActionResAborted();
         return;
     }
-  
+
     actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> gripper_client("/gripper_controller/follow_joint_trajectory", true);
     ROS_INFO("Waiting for the gripper action server...");
     gripper_client.waitForServer();
     ROS_INFO("Gripper action server connected.");
 
     controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
-    if (!goToGrasp(pre_grasp_pose, goal->id)){
+    if (!goToGrasp(pre_grasp_pose, goal->id))
+    {
         armInSafePosition();
         setActionResAborted();
         return;
     }
     planning_scene_interface.removeCollisionObjects({std::to_string(goal->id)});
 
-    //gripper_goal.trajectory.points.clear(); // Clear the previous trajectory
+    // gripper_goal.trajectory.points.clear(); // Clear the previous trajectory
 
     controlGripper(gripper_client, {0.00, 0.00}); // Open gripper
 
     attachObjectToRobot(goal);
     ros::Duration(0.5).sleep();
-    goToPreGrasp(goal, success); 
-        if (!success) {  
-        armInSafePosition();      
-        setActionResAborted();
-        return;
-    }
-    armInSafePosition();
-    
-    //qua si deve muovere
-    rh_ptr->goFrontPlace(0);
-    ROS_INFO("Moving...");
-    armInPregraspPosition();
-    int selected_index;
-    geometry_msgs::Pose placed = goToPlace(goal, success, selected_index);
-        if (!success) { 
-        controlGripper(gripper_client, {0.05, 0.05});// Open gripper
-        detachObjectFromRobot(goal);  
-        armInSafePosition();     
+    goToPreGrasp(goal, success);
+    if (!success)
+    {
+        armInSafePosition();
         setActionResAborted();
         return;
     }
 
-    controlGripper(gripper_client, {0.05, 0.05});// Open gripper
+    int selected_index;
+
+    armInSafePosition();
+    rh_ptr->goFrontPlace();
+    ROS_INFO("Moving front place...");
+    armInPregraspPosition();
+    geometry_msgs::Pose placed = goToPlace(goal, success, selected_index);
+
+    if (!success)
+    {
+        armInSafePosition();
+        rh_ptr->goAsidePlace();
+        ROS_INFO("Moving aside place...");
+        armInPregraspPosition();
+        geometry_msgs::Pose placed = goToPlace(goal, success, selected_index);
+
+        if (!success)
+        {
+            armInSafePosition();
+            rh_ptr->goBackPlace();
+            ROS_INFO("Moving back place...");
+            armInPregraspPosition();
+            geometry_msgs::Pose placed = goToPlace(goal, success, selected_index);
+
+            if (!success)
+            {
+                controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
+                detachObjectFromRobot(goal);
+                armInSafePosition();
+                setActionResAborted();
+                return;
+            }
+        }
+    }
+
+    controlGripper(gripper_client, {0.05, 0.05}); // Open gripper
     detachObjectFromRobot(goal);
-    addCollisionObject(goal->id, placed );
+    addCollisionObject(goal->id, placed);
     ros::Duration(2.0).sleep();
     armInPregraspPosition();
     armInSafePosition();
@@ -506,7 +542,7 @@ void pickAndPlaceCallback(const ir2425_group_08::PickAndPlaceGoalConstPtr &goal)
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "node_c");
-    //ros::NodeHandle nh;
+    // ros::NodeHandle nh;
     auto nh = std::make_shared<ros::NodeHandle>();
     NodeHandleShared nh_ptr_shared(nh);
     nh_ptr = nh.get();
@@ -525,7 +561,7 @@ int main(int argc, char **argv)
     // gripper_group.setPlanningTime(10.0);
     addGlobalCollisionObject();
 
-    actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> as( "/pick_and_place", pickAndPlaceCallback, false);
+    actionlib::SimpleActionServer<ir2425_group_08::PickAndPlaceAction> as("/pick_and_place", pickAndPlaceCallback, false);
     as_ptr = &as;
     as.start();
     ROS_INFO("Server started!");

@@ -301,9 +301,6 @@ int main(int argc, char **argv)
     float m = srv.response.coeffs[0];
     float q = srv.response.coeffs[1];
 
-    // debug
-    m = 0.3;
-    q = 0.1;
     ROS_INFO("m = %f", m);
     ROS_INFO("q = %f", q);
 
@@ -313,6 +310,7 @@ int main(int argc, char **argv)
     moveToPoses(target_poses);
 
     int n = 6;
+    int num_goals = 3;
     // Generate and transform points
     generatePointsInAprilTagFrame(m, q, n, *nh);
 
@@ -324,7 +322,7 @@ int main(int argc, char **argv)
     ros::ServiceClient client_place_goal = nh->serviceClient<ir2425_group_08::PlaceService>("/place_goal", true);
     ros::service::waitForService("/place_goal");
     srv_place_goal.request.target_points = global_points;
-    srv_place_goal.request.num_goals = n;
+    srv_place_goal.request.num_goals = num_goals;
     
     if (!client_place_goal.call(srv_place_goal))
     {
