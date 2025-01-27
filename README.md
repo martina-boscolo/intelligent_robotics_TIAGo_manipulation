@@ -12,6 +12,8 @@ The commands of the first four terminals can be launched at the same time in one
 
 Also node_a, node_b and node_c can be launched using a launch file, specifically prompting ```> roslaunch ir2425_group_08 Nodes.launch```.
 
+We chose to create two separate launch files to prevent a single terminal from becoming cluttered with logs.
+
 #### Build the packages
 
 ```	> cd ~/catkin_ws```
