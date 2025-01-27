@@ -12,9 +12,8 @@
 
 using NodeHandleShared = std::shared_ptr<ros::NodeHandle>;
 
-int placed_tags = 0;
-//constexpr double TIAGO_ARM_MAX_REACH = 0.75;
-std::vector<int> foundTagIds;
+int placed_tags = 0; // apriltags already correctly placed
+std::vector<int> foundTagIds;   // apriltags already found from this side of the table
 bool tagsFound = true;
 
 std::string NODE_A_SRV = "/place_goal";
@@ -25,6 +24,7 @@ ir2425_group_08::RouteHandler* rh_ptr;
 actionlib::SimpleActionClient<ir2425_group_08::PickAndPlaceAction> *ac_ptr;
 ros::NodeHandle* nh_ptr;
 
+// transform tag_pose in map frame
 geometry_msgs::PoseStamped transformTagPose(const geometry_msgs::Pose& tag_pose, const std::string& source_frame) {
     tf::TransformListener listener;
     geometry_msgs::PoseStamped pos_in, pos_out;
@@ -41,6 +41,7 @@ geometry_msgs::PoseStamped transformTagPose(const geometry_msgs::Pose& tag_pose,
     return pos_out;
 }
 
+// sends the goal of PickAndPlaceAction and reacts accordingly if the action succeeded or failed
 void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vector<ir2425_group_08::DetectedObj> objs ) {
     ir2425_group_08::PickAndPlaceGoal goal;
     goal.goal_pose = transformed_pose.pose;
@@ -54,6 +55,7 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     ROS_INFO("Waiting for result...");
     ac_ptr->waitForResult();
     auto actionResult = ac_ptr->getResult();
+    // action succeeded, update the number of placed tags and remove the used target point from the list
     if (actionResult->success) {
         ROS_INFO_STREAM("Apriltag " << id << " placed on the 'place table'.");
         placed_tags++;
@@ -65,6 +67,7 @@ void sendGoalTag(geometry_msgs::PoseStamped transformed_pose, int id, std::vecto
     rh_ptr->setCurrentWaypointIndex(actionResult->new_current_waypoint);
 }
 
+// checks if there are new pickable tags from this side of the table
 void scanForTags() {
     ROS_INFO("Scanning for AprilTags...");
     apriltag_ros::AprilTagDetectionArrayConstPtr msg = 
@@ -83,6 +86,7 @@ void scanForTags() {
 
     for (const auto& detection : msg->detections)
     {
+        // check if the detected apriltag does not have id 10 and is not yet been discovered (tiago has never tried to pick it up from this side)
         if (!(detection.id[0] == 10) && std::find(foundTagIds.begin(), foundTagIds.end(), detection.id[0]) == foundTagIds.end())
         {
             ir2425_group_08::DetectedObj obj;
@@ -91,8 +95,10 @@ void scanForTags() {
             objs.push_back(obj);
         }
     }
+
     if (objs.empty())
     {
+        // no valid tags found from this side of the table
         tagsFound = false;
         ROS_INFO("No valid tags found in this scan");
     } else 
@@ -106,15 +112,10 @@ void scanForTags() {
                 geometry_msgs::PoseStamped transformed_pose = transformTagPose(detection.pose.pose.pose, detection.pose.header.frame_id);
                 foundTagIds.push_back(objs[0].id);
 
+                // if valid tag found send it
                 sendGoalTag(transformed_pose, objs[0].id, objs);
             }
         }
-    }
-}
-
-void poseReachedCallback(const actionlib::SimpleClientGoalState& state) {
-    if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
-        scanForTags();
     }
 }
 
